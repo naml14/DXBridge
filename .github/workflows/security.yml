@@ -1,0 +1,157 @@
+name: Security Review (Gemini API Key)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: security-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  security_review:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute PR diff (limited)
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+
+          # List changed files for context
+          git diff --name-only "$BASE" "$HEAD" | sed 's/^/- /' > changed_files.txt
+
+          # Unified diff, excluding common noisy/binary files
+          git diff --unified=3 "$BASE" "$HEAD" \
+            -- . \
+            ':(exclude)**/*.lock' \
+            ':(exclude)**/package-lock.json' \
+            ':(exclude)**/pnpm-lock.yaml' \
+            ':(exclude)**/yarn.lock' \
+            ':(exclude)**/*.png' \
+            ':(exclude)**/*.jpg' \
+            ':(exclude)**/*.jpeg' \
+            ':(exclude)**/*.gif' \
+            ':(exclude)**/*.pdf' \
+            > pr.diff || true
+
+          # Limit size to reduce request size
+          MAX=120000
+          DIFF_CONTENT="$(tail -c "$MAX" pr.diff || true)"
+
+          {
+            echo "changed_files<<EOF"
+            cat changed_files.txt
+            echo "EOF"
+            echo "diff<<EOF"
+            printf "%s" "$DIFF_CONTENT"
+            echo
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Security review with Gemini (API key)
+        id: gemini
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          CHANGED_FILES: ${{ steps.diff.outputs.changed_files }}
+          DIFF: ${{ steps.diff.outputs.diff }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+            echo "Missing secret GEMINI_API_KEY"
+            exit 1
+          fi
+
+          MODEL="${GEMINI_MODEL:-gemini-1.5-pro}"
+
+          PROMPT=$(cat <<'EOF'
+          You are a senior application security engineer performing a pull request security review.
+
+          Task:
+          - Analyze the provided git diff and identify potential security issues, vulnerabilities, unsafe patterns, auth/session issues, injection risks, secrets leakage, SSRF, deserialization, crypto misuse, access control, insecure defaults, and supply-chain risks.
+          - Be specific: reference filenames and the relevant added/modified lines (best-effort from the diff).
+          - Assign severity: Critical/High/Medium/Low/Info.
+          - Provide concrete remediation suggestions (code-level if possible).
+          - If no significant issues, say so and list any minor hardening suggestions.
+
+          Output format (Markdown):
+          ## Summary
+          ## Findings
+          - [Severity] File: ... — description + recommendation
+          ## Suggested Tests
+          ## Notes
+
+          Changed files:
+          EOF
+          )
+          PROMPT+="$CHANGED_FILES"$'\n\n'"Diff:"$'\n'"```diff"$'\n'"$DIFF"$'\n'"```"$'\n'
+
+          # Gemini API (AI Studio) endpoint.
+          # Note: model naming can differ; keep GEMINI_MODEL configurable via secret.
+          ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}"
+
+          # Build request payload
+          jq -n --arg prompt "$PROMPT" '{
+            contents: [
+              { role: "user", parts: [ { text: $prompt } ] }
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 2048
+            }
+          }' > payload.json
+
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            --data-binary @payload.json \
+            "$ENDPOINT" > response.json
+
+          TEXT=$(jq -r '.candidates[0].content.parts[0].text // empty' response.json)
+
+          if [[ -z "$TEXT" ]]; then
+            echo "No text returned. Raw response:"
+            cat response.json
+            exit 1
+          fi
+
+          {
+            echo "review<<EOF"
+            echo "$TEXT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        env:
+          REVIEW: ${{ steps.gemini.outputs.review }}
+        with:
+          script: |
+            const body = [
+              "## Automated Security Review (Gemini API)",
+              "",
+              process.env.REVIEW
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
