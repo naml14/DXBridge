@@ -1,0 +1,116 @@
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+name: releases
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run release-please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ github.token }}
+          target-branch: master
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Generate AI release notes
+        id: ai_notes
+        if: ${{ steps.release.outputs.release_created }}
+        shell: bash
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RAW_NOTES: ${{ steps.release.outputs.body }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${RAW_NOTES:-}" ]]; then
+            echo "Missing release body from release-please"
+            exit 1
+          fi
+
+          if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+            {
+              echo "notes<<EOF"
+              printf "%s\n" "$RAW_NOTES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MODEL="${GEMINI_MODEL:-gemini-1.5-pro}"
+          PROMPT=$(cat <<'EOF'
+          You are a release engineer writing GitHub release notes for DXBridge.
+
+          Task:
+          - Rewrite the provided raw release notes into concise, polished GitHub release notes.
+          - Preserve only information grounded in the provided release content.
+          - Do not invent features, fixes, compatibility claims, or breaking changes.
+          - Keep the output readable for developers evaluating whether to upgrade.
+
+          Output format:
+          ## Highlights
+          - short bullets with the most important changes
+
+          ## Details
+          - grouped bullets covering the rest of the release content
+
+          ## Upgrade Notes
+          - mention compatibility or migration notes only if they are explicitly present in the source material
+          EOF
+          )
+
+          PROMPT+=$'\n\n'"Tag: ${RELEASE_TAG}"$'\n'"Version: ${RELEASE_VERSION}"$'\n\n'"Raw release notes:"$'\n'"```markdown"$'\n'"${RAW_NOTES}"$'\n'"```"$'\n'
+
+          ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}"
+
+          jq -n --arg prompt "$PROMPT" '{
+            contents: [
+              { role: "user", parts: [ { text: $prompt } ] }
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 2048
+            }
+          }' > payload.json
+
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            --data-binary @payload.json \
+            "$ENDPOINT" > response.json
+
+          TEXT=$(jq -r '.candidates[0].content.parts[0].text // empty' response.json)
+
+          if [[ -z "$TEXT" ]]; then
+            TEXT="$RAW_NOTES"
+          fi
+
+          {
+            echo "notes<<EOF"
+            printf "%s\n" "$TEXT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update GitHub release notes
+        if: ${{ steps.release.outputs.release_created }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+          RELEASE_NOTES: ${{ steps.ai_notes.outputs.notes }}
+        run: |
+          set -euo pipefail
+          printf "%s\n" "$RELEASE_NOTES" > ai-release-notes.md
+          gh release edit "$RELEASE_TAG" --notes-file ai-release-notes.md
