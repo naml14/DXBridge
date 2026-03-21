@@ -3,6 +3,8 @@ name: Security Review (Gemini API Key)
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  branches:
+      - master
 
 permissions:
   contents: read
