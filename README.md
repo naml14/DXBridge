@@ -4,6 +4,26 @@ DXBridge is a Windows-native Direct3D bridge distributed as `dxbridge.dll`. It e
 
 Version `1.0.0` is the first publication-ready baseline of the project. It documents the public ABI, build and test workflow, architecture, and example suites as a coherent v1 release.
 
+## License and usage restrictions
+
+DXBridge is distributed under a custom proprietary license in `LICENSE`.
+
+This repository is not open source. Any permitted use requires visible credit
+to the author or rights holder. Any use of the repository, project, code,
+examples, documentation, or binaries in another project also requires both
+prior notification and prior written authorization from the rights holder.
+
+Required notice must be sent through at least one GitHub-related contact method
+of the rights holder associated with this repository and additionally to
+`naml@electrondevnaml.xyz`.
+
+Important: visible credit and notification do not replace prior written
+authorization. Without written authorization, reuse in another project is
+prohibited.
+
+See `LICENSE` and `docs/license-policy.md` before reusing anything from this
+repository.
+
 ## At a glance
 
 | Topic | Value |
@@ -103,6 +123,7 @@ Read `docs/architecture.md` for the full design walkthrough.
 | `docs/api-reference.md` | Complete public ABI reference and compatibility notes |
 | `docs/build-and-test.md` | Requirements, presets, build commands, validation, troubleshooting |
 | `docs/examples.md` | Example catalog, scenario map, and runtime guidance |
+| `docs/license-policy.md` | Plain-language summary of the proprietary usage restrictions |
 | `examples/README.md` | Folder-level index for browsing examples from GitHub or a file explorer |
 | `CHANGELOG.md` | Release notes and version history |
 

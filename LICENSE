@@ -1,0 +1,123 @@
+DXBridge Custom Proprietary License
+Version 1.0
+
+Copyright (c) 2026 the author and rights holder of this repository.
+All rights reserved.
+
+IMPORTANT: This is a restrictive proprietary license. It is not an open-source
+license, does not grant broad reuse rights, and does not grant any permission
+except what is stated explicitly below.
+
+1. Covered Material
+
+This license applies to the entire repository and all material distributed with
+it, including without limitation source code, headers, examples,
+documentation, binaries, build scripts, assets, and derivative works based on
+any of those materials (collectively, the "Material").
+
+2. Ownership and Reservation of Rights
+
+The Material is proprietary and remains the exclusive property of the author
+and rights holder of this repository (the "Holder"). All rights not expressly
+granted in this license are reserved.
+
+3. Limited Permission to Access and Evaluate
+
+You may view, clone, download, and privately evaluate the Material only for
+review, testing, and compatibility analysis. This limited permission does not
+authorize you to incorporate, reuse, publish, distribute, sublicense, sell,
+commercialize, or deploy any part of the Material in another project unless
+the conditions in Section 5 are fully satisfied in advance.
+
+4. Mandatory Visible Credit
+
+Any use that is permitted under this license must include visible credit to the
+author and/or Holder. "Visible credit" means a clear and reasonably prominent
+attribution that identifies the original repository/project and the author or
+Holder, placed where users or reviewers can normally see it, such as a README,
+credits page, about screen, documentation, repository notice, or equivalent
+location.
+
+5. Additional Conditions for Any Use in Another Project
+
+No part of the Material may be used in another project, repository, product,
+service, library, package, template, plugin, SDK, example collection, or other
+work unless ALL of the following conditions are met before that use begins:
+
+  a. Visible credit is provided in accordance with Section 4.
+
+  b. The Holder is notified in advance.
+
+  c. That notification must be sent through at least one contact method that is
+     published, linked, or otherwise related to the Holder's GitHub presence
+     for this repository and, additionally, by email to:
+
+     naml@electrondevnaml.xyz
+
+  d. The Holder gives prior written authorization for the intended use.
+
+For the avoidance of doubt:
+
+  - notification is mandatory;
+  - prior written authorization is also mandatory;
+  - visible credit is mandatory;
+  - visible credit plus notification do not replace, waive, or satisfy the
+    requirement for prior written authorization.
+
+Silence, delay, lack of response, or the existence of a public repository does
+not mean permission has been granted.
+
+6. Prohibited Use Without Prior Written Authorization
+
+Unless the Holder has first given written authorization after receiving the
+required notification, the following uses are prohibited:
+
+  a. copying any part of the Material into another repository or project;
+
+  b. reusing, adapting, translating, porting, or modifying the Material for use
+     in another project;
+
+  c. distributing, publishing, sublicensing, selling, licensing, or otherwise
+     making the Material available to third parties;
+
+  d. incorporating the Material into commercial, internal business, client,
+     academic, nonprofit, personal, or open-source projects;
+
+  e. creating derivative works intended for release, deployment, or inclusion
+     in another project;
+
+  f. removing, obscuring, minimizing, or replacing required credits,
+     ownership notices, or this license text;
+
+  g. presenting the Material as your own work or as material available under an
+     open-source license.
+
+7. No Implied Permission
+
+No implied license, patent license, trademark license, or other right is
+granted by access to the repository, by receipt of the Material, or by the
+publication of the Material on GitHub or elsewhere.
+
+8. Termination
+
+Any breach of this license immediately and automatically terminates any limited
+permission granted under Section 3. Upon termination, you must stop using the
+Material and destroy or delete copies in your possession or control, unless the
+Holder gives written instructions stating otherwise.
+
+9. Contact for Requests and Notices
+
+All notices and authorization requests required by Section 5 must be sent:
+
+  - through at least one GitHub-related contact method of the Holder associated
+    with this repository or the Holder's GitHub presence; and
+  - by email to `naml@electrondevnaml.xyz`.
+
+10. Interpretation
+
+If there is any conflict between an informal statement about repository usage
+and this license, this license controls unless the Holder provides a separate,
+explicit written authorization.
+
+If you need permission for any use beyond private evaluation, obtain written
+authorization from the Holder before proceeding.
