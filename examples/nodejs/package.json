@@ -1,0 +1,15 @@
+{
+  "name": "dxbridge-nodejs-examples",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "example01": "node example01_load_version_logs.js",
+    "example02": "node example02_enumerate_adapters.js",
+    "example03": "node example03_create_device_errors.js",
+    "example04": "node example04_dx11_clear_window.js",
+    "example05": "node example05_dx11_triangle.js"
+  },
+  "dependencies": {
+    "koffi": "^2.15.2"
+  }
+}

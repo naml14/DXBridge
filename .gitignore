@@ -1,0 +1,36 @@
+/build/
+/out/
+/.vs/
+/.venv/
+/.ruff_cache/
+/examples/nodejs/node_modules/
+/examples/csharp/bin/
+/examples/csharp/obj/
+/examples/rust/target/
+/examples/java/out/
+/examples/java/lib/
+/examples/python/__pycache__/
+/.atl/
+
+# Visual Studio and CMake transient files
+*.VC.db
+*.VC.opendb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.ipch
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.dll
+
+# Test and local artifacts
+/Testing/
+/nul
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
