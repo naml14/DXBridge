@@ -100,7 +100,10 @@ jobs:
           Changed files:
           EOF
           )
-          PROMPT+="$CHANGED_FILES"$'\n\n'"Diff:"$'\n'"```diff"$'\n'"$DIFF"$'\n'"```"$'\n'
+          PROMPT+="$CHANGED_FILES"
+          PROMPT+=$'\n\nDiff:\n```diff\n'
+          PROMPT+="$DIFF"
+          PROMPT+=$'\n```\n'
 
           # Gemini API (AI Studio) endpoint.
           # Note: model naming can differ; keep GEMINI_MODEL configurable via secret.
