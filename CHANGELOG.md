@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
-## [1.4.0](https://github.com/naml14/DXBridge/compare/v1.3.0...v1.4.0) (2026-03-22)
+## [1.3.0](https://github.com/naml14/DXBridge/compare/v1.2.0...v1.3.0) (2026-03-22)
 
 
 ### Features
