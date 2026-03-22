@@ -54,6 +54,13 @@ const (
 
 	CompileDebug uint32 = 0x0001
 	FeatureDX12  uint32 = 0x0001
+
+	CapabilityBackendAvailable       uint32 = 1
+	CapabilityDebugLayerAvailable    uint32 = 2
+	CapabilityGPUValidation          uint32 = 3
+	CapabilityAdapterCount           uint32 = 4
+	CapabilityAdapterSoftware        uint32 = 5
+	CapabilityAdapterMaxFeatureLevel uint32 = 6
 )
 
 type Result int32
@@ -133,6 +140,28 @@ type Viewport struct {
 	MaxDepth float32
 }
 
+type CapabilityQuery struct {
+	StructVersion uint32
+	Capability    uint32
+	Backend       uint32
+	AdapterIndex  uint32
+	Format        uint32
+	Padding       uint32
+	Device        uint64
+	Reserved      [4]uint32
+}
+
+type CapabilityInfo struct {
+	StructVersion uint32
+	Capability    uint32
+	Backend       uint32
+	AdapterIndex  uint32
+	Supported     uint32
+	ValueU32      uint32
+	ValueU64      uint64
+	Reserved      [4]uint32
+}
+
 type Library struct {
 	Path                   string
 	dll                    *syscall.DLL
@@ -141,6 +170,7 @@ type Library struct {
 	shutdownProc           *syscall.Proc
 	getVersionProc         *syscall.Proc
 	supportsFeatureProc    *syscall.Proc
+	queryCapabilityProc    *syscall.Proc
 	getLastErrorProc       *syscall.Proc
 	getLastHRESULTProc     *syscall.Proc
 	enumerateAdaptersProc  *syscall.Proc
@@ -214,6 +244,9 @@ func Load(explicitPath string) (*Library, error) {
 		return nil, err
 	}
 	if lib.supportsFeatureProc, err = loadProc("DXBridge_SupportsFeature"); err != nil {
+		return nil, err
+	}
+	if lib.queryCapabilityProc, err = loadProc("DXBridge_QueryCapability"); err != nil {
 		return nil, err
 	}
 	if lib.getLastErrorProc, err = loadProc("DXBridge_GetLastError"); err != nil {
@@ -338,6 +371,46 @@ func (l *Library) GetVersion() uint32 {
 func (l *Library) SupportsFeature(featureFlag uint32) bool {
 	r1, _, _ := l.supportsFeatureProc.Call(uintptr(featureFlag))
 	return r1 != 0
+}
+
+func (l *Library) QueryCapability(capability uint32, backend uint32, adapterIndex uint32) (CapabilityInfo, error) {
+	query := CapabilityQuery{
+		StructVersion: StructVersion,
+		Capability:    capability,
+		Backend:       backend,
+		AdapterIndex:  adapterIndex,
+		Format:        FormatUnknown,
+		Device:        NullHandle,
+	}
+	info := CapabilityInfo{StructVersion: StructVersion}
+	if err := l.requireOK(l.callResult(l.queryCapabilityProc, uintptr(unsafe.Pointer(&query)), uintptr(unsafe.Pointer(&info))), "DXBridge_QueryCapability"); err != nil {
+		return CapabilityInfo{}, err
+	}
+	return info, nil
+}
+
+func (l *Library) QueryBackendAvailable(backend uint32) (CapabilityInfo, error) {
+	return l.QueryCapability(CapabilityBackendAvailable, backend, 0)
+}
+
+func (l *Library) QueryDebugLayerAvailable(backend uint32) (CapabilityInfo, error) {
+	return l.QueryCapability(CapabilityDebugLayerAvailable, backend, 0)
+}
+
+func (l *Library) QueryGPUValidationAvailable(backend uint32) (CapabilityInfo, error) {
+	return l.QueryCapability(CapabilityGPUValidation, backend, 0)
+}
+
+func (l *Library) QueryAdapterCount(backend uint32) (CapabilityInfo, error) {
+	return l.QueryCapability(CapabilityAdapterCount, backend, 0)
+}
+
+func (l *Library) QueryAdapterSoftware(backend uint32, adapterIndex uint32) (CapabilityInfo, error) {
+	return l.QueryCapability(CapabilityAdapterSoftware, backend, adapterIndex)
+}
+
+func (l *Library) QueryAdapterMaxFeatureLevel(backend uint32, adapterIndex uint32) (CapabilityInfo, error) {
+	return l.QueryCapability(CapabilityAdapterMaxFeatureLevel, backend, adapterIndex)
 }
 
 func (l *Library) Init(backend uint32) error {
@@ -678,6 +751,18 @@ func FormatHRESULT(value uint32) string {
 	return fmt.Sprintf("0x%08X", value)
 }
 
+func FormatFeatureLevel(value uint32) string {
+	if value == 0 {
+		return "n/a"
+	}
+	major := (value >> 12) & 0xF
+	minor := (value >> 8) & 0xF
+	if major == 0 && minor == 0 {
+		return FormatHRESULT(value)
+	}
+	return fmt.Sprintf("%d_%d", major, minor)
+}
+
 func DecodeDescription(raw [128]byte) string {
 	end := 0
 	for end < len(raw) && raw[end] != 0 {
@@ -766,6 +851,9 @@ func locateDLL(explicitPath string) (string, error) {
 			add(filepath.Join(repoRoot, "out", "build", "debug", "Debug", "dxbridge.dll"))
 			add(filepath.Join(repoRoot, "out", "build", "debug", "examples", "Debug", "dxbridge.dll"))
 			add(filepath.Join(repoRoot, "out", "build", "debug", "tests", "Debug", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "release", "Release", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "release", "examples", "Release", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "release", "tests", "Release", "dxbridge.dll"))
 			add(filepath.Join(repoRoot, "out", "build", "ci", "Release", "dxbridge.dll"))
 		}
 	}

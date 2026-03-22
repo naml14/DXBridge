@@ -2,7 +2,9 @@
 
 ## Overview
 
-This suite mirrors the Bun examples under `examples/bun`, but runs on plain Node.js and calls the real `dxbridge.dll` through `koffi`. It follows the same five-step progression used across the DXBridge v1 example families.
+This suite mirrors the Bun examples under `examples/bun`, but runs on plain Node.js and calls the real `dxbridge.dll` through `koffi`. It follows the same six-step progression used across the DXBridge v1 example families.
+
+For `v1.3.0`, scenario 06 is the publishable additive onboarding path; scenarios 01 through 05 still demonstrate the unchanged `1.x` rendering flow.
 
 ## Included examples
 
@@ -14,6 +16,7 @@ This suite mirrors the Bun examples under `examples/bun`, but runs on plain Node
 - `examples/nodejs/example03_create_device_errors.js` - immediate native error retrieval and successful `DXBridge_CreateDevice`
 - `examples/nodejs/example04_dx11_clear_window.js` - real Win32 window creation plus a DX11 clear/present loop
 - `examples/nodejs/example05_dx11_triangle.js` - real window, shader compilation, dynamic vertex buffer, and triangle rendering
+- `examples/nodejs/example06_capability_preflight.js` - scenario 06: pre-init DX11/DX12 capability discovery with optional legacy comparison
 
 ## Requirements
 
@@ -63,6 +66,8 @@ node examples/nodejs/example02_enumerate_adapters.js
 node examples/nodejs/example03_create_device_errors.js --backend dx11
 node examples/nodejs/example04_dx11_clear_window.js --hidden --frames 3
 node examples/nodejs/example05_dx11_triangle.js --hidden --frames 3 --sync-interval 0
+node examples/nodejs/example06_capability_preflight.js
+node examples/nodejs/example06_capability_preflight.js --backend dx12 --compare-active dx12
 ```
 
 From `examples/nodejs`:
@@ -73,6 +78,8 @@ npm run example02
 npm run example03 -- --debug
 npm run example04 -- --hidden --frames 3
 npm run example05 -- --hidden --frames 3 --sync-interval 0
+npm run example06
+npm run preflight:dx11
 ```
 
 ## Notes
@@ -85,6 +92,26 @@ npm run example05 -- --hidden --frames 3 --sync-interval 0
 - DX11 swap chains need a real Win32 `HWND`. The helper creates an actual desktop window, and `--hidden` only hides it visually.
 - The Node.js bindings manually encode the ABI structs so their 64-bit Windows layout stays aligned with `include/dxbridge/dxbridge.h`.
 
+## Capability discovery quick check
+
+`DXBridge_QueryCapability()` is exposed through the shared `DXBridgeLibrary` helper. Scenario 06 now accepts the same flags used by the other refreshed runtimes:
+
+- `--backend all|dx11|dx12` to scope the pre-init pass
+- `--compare-active dx11|dx12` to show how legacy `DXBridge_SupportsFeature()` differs after init
+
+The fastest onboarding path is:
+
+```bat
+node examples/nodejs/example06_capability_preflight.js --backend all --compare-active dx11
+```
+
+That prints, before `DXBridge_Init()`:
+
+- whether DX11 and DX12 are available on the current machine
+- whether each backend exposes a debug layer or GPU validation
+- adapter count, adapter software status, and max feature level for each adapter
+- an optional post-init comparison showing that `DXBridge_SupportsFeature()` is still active-backend scoped
+
 ## Validation
 
 Recommended local checks:
@@ -96,6 +123,8 @@ node examples/nodejs/example02_enumerate_adapters.js
 node examples/nodejs/example03_create_device_errors.js --debug
 node examples/nodejs/example04_dx11_clear_window.js --hidden --frames 3
 node examples/nodejs/example05_dx11_triangle.js --hidden --frames 3 --sync-interval 0
+node examples/nodejs/example06_capability_preflight.js
+npm run preflight:dx12
 ```
 
 ## Troubleshooting
@@ -114,5 +143,6 @@ If a command fails, the most likely causes are:
 - [`../README.md`](../README.md)
 - [`../bun/README.md`](../bun/README.md)
 - [`../hello_triangle/README.md`](../hello_triangle/README.md)
+- [`../run_capability_preflight.ps1`](../run_capability_preflight.ps1)
 - [`../../docs/examples.md`](../../docs/examples.md)
 - [`../../docs/api-reference.md`](../../docs/api-reference.md)

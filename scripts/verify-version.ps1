@@ -2,6 +2,9 @@ param(
     [string]$VersionFile = "version.txt",
     [string]$CMakeFile = "CMakeLists.txt",
     [string]$HeaderFile = "include/dxbridge/dxbridge_version.h",
+    [string]$ManifestFile = ".release-please-manifest.json",
+    [string]$ReadmeFile = "README.md",
+    [string]$ApiReferenceFile = "docs/api-reference.md",
     [string]$Preset,
     [string]$Configuration,
     [string]$BinaryPath,
@@ -20,7 +23,7 @@ function Get-VersionFromCMake {
     param([string]$Path)
 
     $content = Get-Content -Path $Path -Raw
-    $match = [regex]::Match($content, 'project\(dxbridge VERSION ([0-9]+\.[0-9]+\.[0-9]+) LANGUAGES CXX\)')
+    $match = [regex]::Match($content, 'project\s*\(\s*dxbridge\s+VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)[^)]*\)')
     if (-not $match.Success) {
         throw "Could not parse project version from $Path"
     }
@@ -41,6 +44,41 @@ function Get-VersionFromHeader {
     }
 
     return "$($major.Groups[1].Value).$($minor.Groups[1].Value).$($patch.Groups[1].Value)"
+}
+
+function Get-VersionFromManifest {
+    param([string]$Path)
+
+    $json = Get-Content -Path $Path -Raw | ConvertFrom-Json
+    if (-not $json.PSObject.Properties.Name.Contains('.')) {
+        throw "Could not find root package version in $Path"
+    }
+
+    return [string]$json.'.'
+}
+
+function Get-VersionFromReadme {
+    param([string]$Path)
+
+    $content = Get-Content -Path $Path -Raw
+    $match = [regex]::Match($content, '\| Current version \| `([0-9]+\.[0-9]+\.[0-9]+)` \|')
+    if (-not $match.Success) {
+        throw "Could not parse current version table entry from $Path"
+    }
+
+    return $match.Groups[1].Value
+}
+
+function Get-VersionFromApiReference {
+    param([string]$Path)
+
+    $content = Get-Content -Path $Path -Raw
+    $match = [regex]::Match($content, '- Current version: `([0-9]+\.[0-9]+\.[0-9]+)`')
+    if (-not $match.Success) {
+        throw "Could not parse current version marker from $Path"
+    }
+
+    return $match.Groups[1].Value
 }
 
 function Resolve-BinaryPath {
@@ -126,12 +164,22 @@ public static class DXBridgeVersionProbe
 $versionFromFile = Read-TrimmedFile -Path $VersionFile
 $versionFromCMake = Get-VersionFromCMake -Path $CMakeFile
 $versionFromHeader = Get-VersionFromHeader -Path $HeaderFile
+$versionFromManifest = Get-VersionFromManifest -Path $ManifestFile
+$versionFromReadme = Get-VersionFromReadme -Path $ReadmeFile
+$versionFromApiReference = Get-VersionFromApiReference -Path $ApiReferenceFile
 
 Write-Host "version.txt: $versionFromFile"
 Write-Host "CMakeLists.txt: $versionFromCMake"
 Write-Host "dxbridge_version.h: $versionFromHeader"
+Write-Host ".release-please-manifest.json: $versionFromManifest"
+Write-Host "README.md: $versionFromReadme"
+Write-Host "docs/api-reference.md: $versionFromApiReference"
 
-if ($versionFromFile -ne $versionFromCMake -or $versionFromFile -ne $versionFromHeader) {
+if ($versionFromFile -ne $versionFromCMake -or
+    $versionFromFile -ne $versionFromHeader -or
+    $versionFromFile -ne $versionFromManifest -or
+    $versionFromFile -ne $versionFromReadme -or
+    $versionFromFile -ne $versionFromApiReference) {
     throw "Version metadata is out of sync."
 }
 
@@ -144,6 +192,10 @@ $resolvedBinaryPath = Resolve-BinaryPath -PresetName $Preset -ConfigName $Config
 if (-not $resolvedBinaryPath) {
     Write-Host "No binary path or preset provided; metadata check only."
     exit 0
+}
+
+if (-not (Test-Path -Path $resolvedBinaryPath)) {
+    throw "Binary path does not exist: $resolvedBinaryPath"
 }
 
 $fullBinaryPath = (Resolve-Path -Path $resolvedBinaryPath).Path

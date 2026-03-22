@@ -51,6 +51,13 @@ pub const DXB_SEMANTIC_COLOR: u32 = 3;
 pub const DXB_COMPILE_DEBUG: u32 = 0x0001;
 pub const DXB_FEATURE_DX12: u32 = 0x0001;
 
+pub const DXB_CAPABILITY_BACKEND_AVAILABLE: u32 = 1;
+pub const DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE: u32 = 2;
+pub const DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE: u32 = 3;
+pub const DXB_CAPABILITY_ADAPTER_COUNT: u32 = 4;
+pub const DXB_CAPABILITY_ADAPTER_SOFTWARE: u32 = 5;
+pub const DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL: u32 = 6;
+
 pub type DxbResult = i32;
 pub type DxbDevice = u64;
 pub type DxbSwapChain = u64;
@@ -166,6 +173,32 @@ pub struct DxbViewport {
     pub max_depth: f32,
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct DxbCapabilityQuery {
+    pub struct_version: u32,
+    pub capability: u32,
+    pub backend: u32,
+    pub adapter_index: u32,
+    pub format: u32,
+    pub _padding: u32,
+    pub device: DxbDevice,
+    pub reserved: [u32; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct DxbCapabilityInfo {
+    pub struct_version: u32,
+    pub capability: u32,
+    pub backend: u32,
+    pub adapter_index: u32,
+    pub supported: u32,
+    pub value_u32: u32,
+    pub value_u64: u64,
+    pub reserved: [u32; 4],
+}
+
 type DxbLogCallback =
     unsafe extern "C" fn(level: i32, message: *const c_char, user_data: *mut c_void);
 type DxBridgeSetLogCallback =
@@ -174,6 +207,10 @@ type DxBridgeInit = unsafe extern "C" fn(backend_hint: u32) -> DxbResult;
 type DxBridgeShutdown = unsafe extern "C" fn();
 type DxBridgeGetVersion = unsafe extern "C" fn() -> u32;
 type DxBridgeSupportsFeature = unsafe extern "C" fn(feature_flag: u32) -> u32;
+type DxBridgeQueryCapability = unsafe extern "C" fn(
+    query: *const DxbCapabilityQuery,
+    out_info: *mut DxbCapabilityInfo,
+) -> DxbResult;
 type DxBridgeGetLastError = unsafe extern "C" fn(buf: *mut c_char, buf_size: i32);
 type DxBridgeGetLastHresult = unsafe extern "C" fn() -> u32;
 type DxBridgeEnumerateAdapters =
@@ -270,6 +307,7 @@ pub struct DxBridge {
     shutdown: DxBridgeShutdown,
     get_version: DxBridgeGetVersion,
     supports_feature: DxBridgeSupportsFeature,
+    query_capability: DxBridgeQueryCapability,
     get_last_error: DxBridgeGetLastError,
     get_last_hresult: DxBridgeGetLastHresult,
     enumerate_adapters: DxBridgeEnumerateAdapters,
@@ -321,6 +359,7 @@ impl DxBridge {
                 shutdown: *library.get(b"DXBridge_Shutdown\0")?,
                 get_version: *library.get(b"DXBridge_GetVersion\0")?,
                 supports_feature: *library.get(b"DXBridge_SupportsFeature\0")?,
+                query_capability: *library.get(b"DXBridge_QueryCapability\0")?,
                 get_last_error: *library.get(b"DXBridge_GetLastError\0")?,
                 get_last_hresult: *library.get(b"DXBridge_GetLastHRESULT\0")?,
                 enumerate_adapters: *library.get(b"DXBridge_EnumerateAdapters\0")?,
@@ -379,6 +418,69 @@ impl DxBridge {
 
     pub fn supports_feature(&self, feature_flag: u32) -> bool {
         unsafe { (self.supports_feature)(feature_flag) != 0 }
+    }
+
+    pub fn query_capability(
+        &self,
+        capability: u32,
+        backend: u32,
+        adapter_index: u32,
+    ) -> AnyResult<DxbCapabilityInfo> {
+        let query = DxbCapabilityQuery {
+            struct_version: DXBRIDGE_STRUCT_VERSION,
+            capability,
+            backend,
+            adapter_index,
+            format: DXB_FORMAT_UNKNOWN,
+            _padding: 0,
+            device: DXB_NULL_HANDLE,
+            reserved: [0; 4],
+        };
+        let mut info = DxbCapabilityInfo {
+            struct_version: DXBRIDGE_STRUCT_VERSION,
+            ..Default::default()
+        };
+        self.require_ok(
+            unsafe { (self.query_capability)(&query, &mut info) },
+            "DXBridge_QueryCapability",
+        )?;
+        Ok(info)
+    }
+
+    pub fn query_backend_available(&self, backend: u32) -> AnyResult<DxbCapabilityInfo> {
+        self.query_capability(DXB_CAPABILITY_BACKEND_AVAILABLE, backend, 0)
+    }
+
+    pub fn query_debug_layer_available(&self, backend: u32) -> AnyResult<DxbCapabilityInfo> {
+        self.query_capability(DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE, backend, 0)
+    }
+
+    pub fn query_gpu_validation_available(&self, backend: u32) -> AnyResult<DxbCapabilityInfo> {
+        self.query_capability(DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE, backend, 0)
+    }
+
+    pub fn query_adapter_count(&self, backend: u32) -> AnyResult<DxbCapabilityInfo> {
+        self.query_capability(DXB_CAPABILITY_ADAPTER_COUNT, backend, 0)
+    }
+
+    pub fn query_adapter_software(
+        &self,
+        backend: u32,
+        adapter_index: u32,
+    ) -> AnyResult<DxbCapabilityInfo> {
+        self.query_capability(DXB_CAPABILITY_ADAPTER_SOFTWARE, backend, adapter_index)
+    }
+
+    pub fn query_adapter_max_feature_level(
+        &self,
+        backend: u32,
+        adapter_index: u32,
+    ) -> AnyResult<DxbCapabilityInfo> {
+        self.query_capability(
+            DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL,
+            backend,
+            adapter_index,
+        )
     }
 
     pub fn init(&self, backend: u32) -> AnyResult<()> {
@@ -807,6 +909,18 @@ pub fn format_hresult(value: u32) -> String {
     format!("0x{:08X}", value)
 }
 
+pub fn format_feature_level(value: u32) -> String {
+    if value == 0 {
+        return "n/a".to_string();
+    }
+    let major = (value >> 12) & 0xF;
+    let minor = (value >> 8) & 0xF;
+    if major == 0 && minor == 0 {
+        return format_hresult(value);
+    }
+    format!("{}_{}", major, minor)
+}
+
 pub fn decode_description(raw: &[u8; 128]) -> String {
     let len = raw.iter().position(|byte| *byte == 0).unwrap_or(raw.len());
     String::from_utf8_lossy(&raw[..len]).into_owned()
@@ -878,6 +992,32 @@ fn locate_dll(explicit_path: Option<&str>) -> AnyResult<PathBuf> {
                 .join("debug")
                 .join("tests")
                 .join("Debug")
+                .join("dxbridge.dll"),
+        );
+        candidates.push(
+            repo_root
+                .join("out")
+                .join("build")
+                .join("release")
+                .join("Release")
+                .join("dxbridge.dll"),
+        );
+        candidates.push(
+            repo_root
+                .join("out")
+                .join("build")
+                .join("release")
+                .join("examples")
+                .join("Release")
+                .join("dxbridge.dll"),
+        );
+        candidates.push(
+            repo_root
+                .join("out")
+                .join("build")
+                .join("release")
+                .join("tests")
+                .join("Release")
                 .join("dxbridge.dll"),
         );
         candidates.push(

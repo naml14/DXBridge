@@ -66,6 +66,13 @@ DXB_COMPILE_DEBUG = 0x0001
 
 DXB_FEATURE_DX12 = 0x0001
 
+DXB_CAPABILITY_BACKEND_AVAILABLE = 1
+DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE = 2
+DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE = 3
+DXB_CAPABILITY_ADAPTER_COUNT = 4
+DXB_CAPABILITY_ADAPTER_SOFTWARE = 5
+DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL = 6
+
 LOG_LEVEL_NAMES = {
     0: "INFO",
     1: "WARN",
@@ -176,6 +183,32 @@ class DXBViewport(ctypes.Structure):
     ]
 
 
+class DXBCapabilityQuery(ctypes.Structure):
+    _fields_ = [
+        ("struct_version", ctypes.c_uint32),
+        ("capability", ctypes.c_uint32),
+        ("backend", ctypes.c_uint32),
+        ("adapter_index", ctypes.c_uint32),
+        ("format", ctypes.c_uint32),
+        ("_padding", ctypes.c_uint32),
+        ("device", DXBDevice),
+        ("reserved", ctypes.c_uint32 * 4),
+    ]
+
+
+class DXBCapabilityInfo(ctypes.Structure):
+    _fields_ = [
+        ("struct_version", ctypes.c_uint32),
+        ("capability", ctypes.c_uint32),
+        ("backend", ctypes.c_uint32),
+        ("adapter_index", ctypes.c_uint32),
+        ("supported", ctypes.c_uint32),
+        ("value_u32", ctypes.c_uint32),
+        ("value_u64", ctypes.c_uint64),
+        ("reserved", ctypes.c_uint32 * 4),
+    ]
+
+
 def parse_version(version: int) -> str:
     major = (version >> 16) & 0xFF
     minor = (version >> 8) & 0xFF
@@ -198,6 +231,16 @@ def format_bytes(value: int) -> str:
     if unit == "B":
         return f"{int(amount)} {unit}"
     return f"{amount:.1f} {unit}"
+
+
+def format_feature_level(value: int) -> str:
+    if value == 0:
+        return "n/a"
+    major = (value >> 12) & 0xF
+    minor = (value >> 8) & 0xF
+    if major == 0 and minor == 0:
+        return format_hresult(value)
+    return f"{major}_{minor}"
 
 
 def make_versioned(struct_type, **values):
@@ -223,6 +266,7 @@ def locate_dxbridge_dll(explicit_path: str | None = None) -> Path:
     candidates.extend(
         [
             Path.cwd() / "dxbridge.dll",
+            script_dir / "dxbridge.dll",
             repo_root / "out" / "build" / "debug" / "Debug" / "dxbridge.dll",
             repo_root
             / "out"
@@ -232,6 +276,21 @@ def locate_dxbridge_dll(explicit_path: str | None = None) -> Path:
             / "Debug"
             / "dxbridge.dll",
             repo_root / "out" / "build" / "debug" / "tests" / "Debug" / "dxbridge.dll",
+            repo_root / "out" / "build" / "release" / "Release" / "dxbridge.dll",
+            repo_root
+            / "out"
+            / "build"
+            / "release"
+            / "examples"
+            / "Release"
+            / "dxbridge.dll",
+            repo_root
+            / "out"
+            / "build"
+            / "release"
+            / "tests"
+            / "Release"
+            / "dxbridge.dll",
             repo_root / "out" / "build" / "ci" / "Release" / "dxbridge.dll",
         ]
     )
@@ -274,6 +333,12 @@ class DXBridgeLibrary:
 
         self.dll.DXBridge_SupportsFeature.argtypes = [ctypes.c_uint32]
         self.dll.DXBridge_SupportsFeature.restype = ctypes.c_uint32
+
+        self.dll.DXBridge_QueryCapability.argtypes = [
+            ctypes.POINTER(DXBCapabilityQuery),
+            ctypes.POINTER(DXBCapabilityInfo),
+        ]
+        self.dll.DXBridge_QueryCapability.restype = ctypes.c_int32
 
         self.dll.DXBridge_GetLastError.argtypes = [ctypes.c_char_p, ctypes.c_int]
         self.dll.DXBridge_GetLastError.restype = None
@@ -480,6 +545,63 @@ class DXBridgeLibrary:
 
     def init(self, backend: int) -> None:
         self.raise_for_result(self.dll.DXBridge_Init(backend), "DXBridge_Init")
+
+    def supports_feature(self, feature_flag: int) -> bool:
+        return bool(self.dll.DXBridge_SupportsFeature(feature_flag))
+
+    def query_capability(
+        self,
+        capability: int,
+        backend: int,
+        *,
+        adapter_index: int = 0,
+        format_code: int = DXB_FORMAT_UNKNOWN,
+        device: int = DXBRIDGE_NULL_HANDLE,
+    ) -> DXBCapabilityInfo:
+        query = make_versioned(
+            DXBCapabilityQuery,
+            capability=capability,
+            backend=backend,
+            adapter_index=adapter_index,
+            format=format_code,
+            device=DXBDevice(device),
+        )
+        info = make_versioned(DXBCapabilityInfo)
+        self.raise_for_result(
+            self.dll.DXBridge_QueryCapability(ctypes.byref(query), ctypes.byref(info)),
+            "DXBridge_QueryCapability",
+        )
+        return info
+
+    def query_backend_available(self, backend: int) -> DXBCapabilityInfo:
+        return self.query_capability(DXB_CAPABILITY_BACKEND_AVAILABLE, backend)
+
+    def query_debug_layer_available(self, backend: int) -> DXBCapabilityInfo:
+        return self.query_capability(DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE, backend)
+
+    def query_gpu_validation_available(self, backend: int) -> DXBCapabilityInfo:
+        return self.query_capability(DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE, backend)
+
+    def query_adapter_count(self, backend: int) -> DXBCapabilityInfo:
+        return self.query_capability(DXB_CAPABILITY_ADAPTER_COUNT, backend)
+
+    def query_adapter_software(
+        self, backend: int, adapter_index: int
+    ) -> DXBCapabilityInfo:
+        return self.query_capability(
+            DXB_CAPABILITY_ADAPTER_SOFTWARE,
+            backend,
+            adapter_index=adapter_index,
+        )
+
+    def query_adapter_max_feature_level(
+        self, backend: int, adapter_index: int
+    ) -> DXBCapabilityInfo:
+        return self.query_capability(
+            DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL,
+            backend,
+            adapter_index=adapter_index,
+        )
 
     def shutdown(self) -> None:
         self.dll.DXBridge_Shutdown()

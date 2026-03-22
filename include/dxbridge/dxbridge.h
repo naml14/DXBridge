@@ -84,6 +84,14 @@ typedef uint32_t DXBInputSemantic;
 typedef uint32_t DXBFeatureFlag;
 #define DXB_FEATURE_DX12      ((DXBFeatureFlag)0x0001)
 
+typedef uint32_t DXBCapability;
+#define DXB_CAPABILITY_BACKEND_AVAILABLE      ((DXBCapability)1)
+#define DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE  ((DXBCapability)2)
+#define DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE ((DXBCapability)3)
+#define DXB_CAPABILITY_ADAPTER_COUNT          ((DXBCapability)4)
+#define DXB_CAPABILITY_ADAPTER_SOFTWARE       ((DXBCapability)5)
+#define DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL ((DXBCapability)6)
+
 // --- Structs (struct_version at offset 0, POD only, fixed-width types) -------
 
 typedef struct DXBAdapterInfo {
@@ -165,6 +173,27 @@ typedef struct DXBViewport {
     float max_depth;    // typically 1.0f
 } DXBViewport;
 
+typedef struct DXBCapabilityQuery {
+    uint32_t      struct_version;
+    DXBCapability capability;
+    DXBBackend    backend;          // explicit backend target; AUTO is invalid for current queries
+    uint32_t      adapter_index;    // used by adapter capabilities
+    DXBFormat     format;           // reserved for future format capabilities
+    DXBDevice     device;           // reserved for future device-scoped capabilities
+    uint32_t      reserved[4];
+} DXBCapabilityQuery;
+
+typedef struct DXBCapabilityInfo {
+    uint32_t      struct_version;
+    DXBCapability capability;
+    DXBBackend    backend;
+    uint32_t      adapter_index;
+    uint32_t      supported;        // 1 when the query resolved for the requested target
+    uint32_t      value_u32;        // capability-specific numeric payload
+    uint64_t      value_u64;        // reserved for future larger payloads
+    uint32_t      reserved[4];
+} DXBCapabilityInfo;
+
 // static_asserts (C++ only) verify struct_version is at offset 0
 #ifdef __cplusplus
 #include <cstddef>
@@ -176,6 +205,8 @@ static_assert(offsetof(DXBShaderDesc,     struct_version) == 0, "struct_version 
 static_assert(offsetof(DXBInputElementDesc,struct_version)== 0, "struct_version must be at offset 0");
 static_assert(offsetof(DXBDepthStencilDesc,struct_version)== 0, "struct_version must be at offset 0");
 static_assert(offsetof(DXBPipelineDesc,   struct_version) == 0, "struct_version must be at offset 0");
+static_assert(offsetof(DXBCapabilityQuery,struct_version) == 0, "struct_version must be at offset 0");
+static_assert(offsetof(DXBCapabilityInfo, struct_version) == 0, "struct_version must be at offset 0");
 
 static_assert(sizeof(DXBDevice)       == 8, "handle must be 8 bytes");
 static_assert(sizeof(DXBSwapChain)    == 8, "handle must be 8 bytes");
@@ -202,6 +233,8 @@ DXBRIDGE_API DXBResult DXBridge_Init(DXBBackend backend_hint);
 DXBRIDGE_API void      DXBridge_Shutdown(void);
 DXBRIDGE_API uint32_t  DXBridge_GetVersion(void);
 DXBRIDGE_API uint32_t  DXBridge_SupportsFeature(uint32_t feature_flag);
+DXBRIDGE_API DXBResult DXBridge_QueryCapability(const DXBCapabilityQuery* query,
+                                                DXBCapabilityInfo* out_info);
 
 // Error info
 DXBRIDGE_API void      DXBridge_GetLastError(char* buf, int buf_size);

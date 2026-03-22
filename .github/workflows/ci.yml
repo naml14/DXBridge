@@ -29,3 +29,6 @@ jobs:
 
       - name: Run tests (CTest ci preset via PowerShell wrapper)
         run: .\scripts\run-ctest.ps1 -Preset ci
+
+      - name: Run runtime capability validation smoke
+        run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll

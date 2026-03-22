@@ -11,7 +11,11 @@
     "example02": "node example02_enumerate_adapters.js",
     "example03": "node example03_create_device_errors.js",
     "example04": "node example04_dx11_clear_window.js",
-    "example05": "node example05_dx11_triangle.js"
+    "example05": "node example05_dx11_triangle.js",
+    "example06": "node example06_capability_preflight.js",
+    "preflight": "node example06_capability_preflight.js",
+    "preflight:dx11": "node example06_capability_preflight.js --backend dx11 --compare-active dx11",
+    "preflight:dx12": "node example06_capability_preflight.js --backend dx12 --compare-active dx12"
   },
   "dependencies": {
     "koffi": "^2.15.2"
