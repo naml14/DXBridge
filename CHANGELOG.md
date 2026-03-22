@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.1.2](https://github.com/naml14/DXBridge/compare/v1.1.1...v1.1.2) (2026-03-22)
+
+
+### Bug Fixes
+
+* add GH_REPO environment variable to release notes update step ([54cbd60](https://github.com/naml14/DXBridge/commit/54cbd60ceaeeae0317144dcde2c2f342514c1304))
+
 ## [1.1.1](https://github.com/naml14/DXBridge/compare/v1.1.0...v1.1.1) (2026-03-22)
 
 
