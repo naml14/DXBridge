@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.1.0](https://github.com/naml14/DXBridge/compare/v1.0.1...v1.1.0) (2026-03-22)
+
+
+### Features
+
+* add CI and security review workflows for pull requests ([bf77f5e](https://github.com/naml14/DXBridge/commit/bf77f5e2728a8fc389adc7a9420f404c12f5db34))
+* add release automation configuration and workflows ([ae3eaf6](https://github.com/naml14/DXBridge/commit/ae3eaf6248abf625d16468c4500872a3725f888e))
+* initialize dxbridge v1 repository with 8 different languages examples and full documentation ([97a736d](https://github.com/naml14/DXBridge/commit/97a736d1c4c04fc4fe166dbb3296970f8275e483))
+
+
+### Bug Fixes
+
+* format prompt output for security review diff in workflow ([a2fb143](https://github.com/naml14/DXBridge/commit/a2fb143899dd2cda5fec8c38d34d3ddb9b2fe536))
+
 ## [Unreleased]
 
 - No unreleased changes recorded yet.
