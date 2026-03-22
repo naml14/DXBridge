@@ -41,7 +41,25 @@ The format is inspired by Keep a Changelog and the project uses semantic version
 
 ## [Unreleased]
 
-- No unreleased changes recorded yet.
+Prepared release payload for the compatible `1.3.0` minor.
+
+### Public additive value
+
+- add the `DXBridge_QueryCapability()` pre-init capability-discovery family with `DXBCapabilityQuery`, `DXBCapabilityInfo`, and additive capability IDs
+- add wrapper/helper coverage for capability discovery in Bun, Node.js, Python, Go, and Rust bindings
+- add aligned `example06_capability_preflight` onboarding samples plus the shared `examples/run_capability_preflight.ps1` launcher
+
+### Internal hardening
+
+- strengthen ABI and compatibility validation with `test_public_abi_contract` and capability-focused regression coverage
+- add runtime validation tooling through `scripts/run-runtime-validation.ps1` to smoke the maintained language bindings against one DLL
+- reinforce validation and CI guidance around release confidence without changing the base backend or rendering model
+
+### Documentation and release work
+
+- update the README, API reference, examples guide, integration guide, and language-specific example docs to explain the compatible `v1.3.0` story clearly
+- add release-ready notes in `docs/releases/v1.3.0-release-notes.md` and a publication checklist in `docs/releases/v1.3.0-publishing-checklist.md`
+- keep the release message split between public additive value, internal hardening, and documentation or release-process work
 
 ## [1.0.1] - 2026-03-21
 

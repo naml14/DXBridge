@@ -55,6 +55,13 @@ export const DXB_SEMANTIC_COLOR = 3;
 
 export const DXB_FEATURE_DX12 = 0x0001;
 
+export const DXB_CAPABILITY_BACKEND_AVAILABLE = 1;
+export const DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE = 2;
+export const DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE = 3;
+export const DXB_CAPABILITY_ADAPTER_COUNT = 4;
+export const DXB_CAPABILITY_ADAPTER_SOFTWARE = 5;
+export const DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL = 6;
+
 export const DXB_RESULT_NAMES: Record<number, string> = {
   [DXB_OK]: "DXB_OK",
   [DXB_E_INVALID_HANDLE]: "DXB_E_INVALID_HANDLE",
@@ -88,6 +95,8 @@ const DXB_SHADER_DESC_SIZE = 56;
 const DXB_INPUT_ELEMENT_DESC_SIZE = 24;
 const DXB_PIPELINE_DESC_SIZE = 56;
 const DXB_VIEWPORT_SIZE = 24;
+const DXB_CAPABILITY_QUERY_SIZE = 48;
+const DXB_CAPABILITY_INFO_SIZE = 48;
 
 export type DXBHandle = bigint;
 
@@ -159,6 +168,24 @@ export interface ViewportInit {
   maxDepth?: number;
 }
 
+export interface CapabilityQueryInit {
+  capability: number;
+  backend: number;
+  adapterIndex?: number;
+  format?: number;
+  device?: DXBHandle;
+}
+
+export interface CapabilityInfo {
+  structVersion: number;
+  capability: number;
+  backend: number;
+  adapterIndex: number;
+  supported: boolean;
+  valueU32: number;
+  valueU64: bigint;
+}
+
 export interface ParsedArgs {
   positional: string[];
   values: Record<string, string | boolean>;
@@ -177,6 +204,7 @@ const DXBRIDGE_SYMBOLS = {
   DXBridge_Shutdown: { args: [], returns: "void" },
   DXBridge_GetVersion: { args: [], returns: "u32" },
   DXBridge_SupportsFeature: { args: ["u32"], returns: "u32" },
+  DXBridge_QueryCapability: { args: ["ptr", "ptr"], returns: "i32" },
   DXBridge_GetLastError: { args: ["ptr", "i32"], returns: "void" },
   DXBridge_GetLastHRESULT: { args: [], returns: "u32" },
   DXBridge_EnumerateAdapters: { args: ["ptr", "ptr"], returns: "i32" },
@@ -349,6 +377,33 @@ function encodeViewport(viewport: ViewportInit): Uint8Array {
   return bytes;
 }
 
+function encodeCapabilityQuery(query: CapabilityQueryInit): Uint8Array {
+  const bytes = new Uint8Array(DXB_CAPABILITY_QUERY_SIZE);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  writeU32(view, 0, DXBRIDGE_STRUCT_VERSION);
+  writeU32(view, 4, query.capability);
+  writeU32(view, 8, query.backend);
+  writeU32(view, 12, query.adapterIndex ?? 0);
+  writeU32(view, 16, query.format ?? DXB_FORMAT_UNKNOWN);
+  // offset 20: 4 bytes of implicit padding to align the 64-bit `device` field to offset 24.
+  // `new Uint8Array` zero-fills, so the padding is correctly zeroed without an explicit write.
+  writeU64(view, 24, query.device ?? DXBRIDGE_NULL_HANDLE);
+  return bytes;
+}
+
+function decodeCapabilityInfo(bytes: Uint8Array): CapabilityInfo {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return {
+    structVersion: view.getUint32(0, true),
+    capability: view.getUint32(4, true),
+    backend: view.getUint32(8, true),
+    adapterIndex: view.getUint32(12, true),
+    supported: view.getUint32(16, true) !== 0,
+    valueU32: view.getUint32(20, true),
+    valueU64: readU64(view, 24),
+  };
+}
+
 function toByteView(data: ArrayBufferView): Uint8Array {
   return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 }
@@ -383,6 +438,18 @@ export function formatBytes(value: bigint): string {
     return `${Math.trunc(amount)} ${unit}`;
   }
   return `${amount.toFixed(1)} ${unit}`;
+}
+
+export function formatFeatureLevel(value: number): string {
+  if (value === 0) {
+    return "n/a";
+  }
+  const major = (value >>> 12) & 0xf;
+  const minor = (value >>> 8) & 0xf;
+  if (major === 0 && minor === 0) {
+    return formatHRESULT(value);
+  }
+  return `${major}_${minor}`;
 }
 
 export function parseBackend(name: string): number {
@@ -513,6 +580,39 @@ export class DXBridgeLibrary {
 
   supportsFeature(featureFlag: number): boolean {
     return this.raw.DXBridge_SupportsFeature(featureFlag) !== 0;
+  }
+
+  queryCapability(query: CapabilityQueryInit): CapabilityInfo {
+    const queryBuffer = encodeCapabilityQuery(query);
+    const infoBuffer = new Uint8Array(DXB_CAPABILITY_INFO_SIZE);
+    const infoView = new DataView(infoBuffer.buffer, infoBuffer.byteOffset, infoBuffer.byteLength);
+    writeU32(infoView, 0, DXBRIDGE_STRUCT_VERSION);
+    this.requireOK(this.raw.DXBridge_QueryCapability(queryBuffer, infoBuffer), "DXBridge_QueryCapability");
+    return decodeCapabilityInfo(infoBuffer);
+  }
+
+  queryBackendAvailable(backend: number): CapabilityInfo {
+    return this.queryCapability({ capability: DXB_CAPABILITY_BACKEND_AVAILABLE, backend });
+  }
+
+  queryDebugLayerAvailable(backend: number): CapabilityInfo {
+    return this.queryCapability({ capability: DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE, backend });
+  }
+
+  queryGPUValidationAvailable(backend: number): CapabilityInfo {
+    return this.queryCapability({ capability: DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE, backend });
+  }
+
+  queryAdapterCount(backend: number): CapabilityInfo {
+    return this.queryCapability({ capability: DXB_CAPABILITY_ADAPTER_COUNT, backend });
+  }
+
+  queryAdapterSoftware(backend: number, adapterIndex: number): CapabilityInfo {
+    return this.queryCapability({ capability: DXB_CAPABILITY_ADAPTER_SOFTWARE, backend, adapterIndex });
+  }
+
+  queryAdapterMaxFeatureLevel(backend: number, adapterIndex: number): CapabilityInfo {
+    return this.queryCapability({ capability: DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL, backend, adapterIndex });
   }
 
   init(backendHint: number): void {

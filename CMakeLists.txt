@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(dxbridge VERSION 1.2.0 LANGUAGES CXX) # x-release-please-version
+project(dxbridge VERSION 1.3.0 LANGUAGES CXX) # x-release-please-version
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -50,6 +50,7 @@ target_include_directories(dxbridge_dx12 PRIVATE src)
 # ---------------------------------------------------------------------------
 add_library(dxbridge SHARED
     src/dxbridge.cpp
+    src/capability_query.cpp
 )
 target_compile_definitions(dxbridge PRIVATE DXBRIDGE_EXPORTS)
 target_link_libraries(dxbridge PRIVATE dxbridge_dx11 dxbridge_dx12)

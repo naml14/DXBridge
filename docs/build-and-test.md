@@ -33,6 +33,7 @@ Optional smoke-only pass:
 ```bat
 pwsh -File scripts\run-ctest.ps1 -Preset debug -Label smoke
 cmake --build --preset debug --target check_smoke
+cmake --build --preset debug --target check_abi
 ```
 
 ## CMake presets
@@ -124,7 +125,7 @@ Use the PowerShell wrapper when possible on Windows so Git Bash and PowerShell i
 
 ## Version verification
 
-Before cutting or validating a patch release, re-check the synchronized version metadata:
+Before cutting or validating a release, re-check the synchronized version metadata:
 
 ```bat
 pwsh -File scripts\verify-version.ps1 -SkipBinaryCheck
@@ -135,6 +136,44 @@ After building a preset, you can also verify the generated DLL export version:
 ```bat
 pwsh -File scripts\verify-version.ps1 -Preset release -Configuration Release
 ```
+
+The same script now checks the synchronized version markers in:
+
+- `version.txt`
+- `CMakeLists.txt`
+- `include/dxbridge/dxbridge_version.h`
+- `.release-please-manifest.json`
+- `README.md`
+- `docs/api-reference.md`
+
+For the closed `v1.3.0` release branch, keep `version.txt`, `CMakeLists.txt`, `include/dxbridge/dxbridge_version.h`, `.release-please-manifest.json`, `README.md`, and `docs/api-reference.md` synchronized at `1.3.0`.
+
+## Runtime capability validation
+
+For the `v1.3.0` compatible-growth line, the fastest cross-runtime preflight check for the additive capability API is:
+
+```bat
+pwsh -File scripts\run-runtime-validation.ps1 -Dll out\build\debug\Debug\dxbridge.dll
+```
+
+By default this validates the main maintained runtimes:
+
+- Node.js
+- Python
+- Go
+- Rust
+
+It reuses `examples/run_capability_preflight.ps1`, so the same backend flags and explicit DLL override can be used for local or CI validation.
+
+## `v1.3.0` release validation ladder
+
+Recommended order when validating the compatible minor before publication:
+
+1. `pwsh -File scripts\verify-version.ps1 -SkipBinaryCheck`
+2. `cmake --build --preset debug --target check_abi`
+3. `pwsh -File scripts\run-ctest.ps1 -Preset debug -Label smoke`
+4. `pwsh -File scripts\run-runtime-validation.ps1 -Dll out\build\debug\Debug\dxbridge.dll`
+5. review `CHANGELOG.md`, `docs/releases/v1.3.0-release-notes.md`, and `docs/releases/v1.3.0-publishing-checklist.md` together
 
 ## Test organization
 
@@ -148,6 +187,7 @@ CTest labels in v1 include:
 - `smoke`
 - `core`
 - `example`
+- `abi`
 
 Representative coverage:
 
@@ -228,4 +268,5 @@ This sequence isolates whether the issue is in the core build, the native runtim
 - `README.md`
 - `docs/architecture.md`
 - `docs/examples.md`
+- `docs/releases/v1.3.0-publishing-checklist.md`
 - `tests/README.md`

@@ -43,3 +43,4 @@ EXPORTS
     DXBridge_Present            @41
     DXBridge_GetNativeDevice    @42
     DXBridge_GetNativeContext   @43
+    DXBridge_QueryCapability    @44

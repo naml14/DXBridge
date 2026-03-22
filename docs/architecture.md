@@ -200,3 +200,5 @@ This is one of the key release themes of v1: the API is designed for both render
 - `docs/api-reference.md`
 - `docs/build-and-test.md`
 - `docs/examples.md`
+- `docs/releases/v1.3.0-scope.md`
+- `docs/releases/v1.3.0-compatible-design.md`

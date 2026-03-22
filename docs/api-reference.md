@@ -1,18 +1,21 @@
 # API Reference
 
-This document is the reference for the public DXBridge v1 ABI exported by `dxbridge.dll`, aligned with release `1.0.1`.
+This document is the reference for the public DXBridge v1 ABI exported by `dxbridge.dll`.
+
+This page documents release `1.3.0`, including the additive capability-growth surface that ships without breaking the existing `1.x` contract.
 
 - Public headers: `include/dxbridge/dxbridge.h`, `include/dxbridge/dxbridge_version.h`
-- Current version: `1.0.1`
+- Current version: `1.3.0`
 - ABI style: C ABI, fixed-width integer types, opaque 64-bit handles
 - Platforms: Windows 10/11, minimum OS noted in the public header as Windows 10 1809
 - Minimum Windows SDK noted in the public header: `10.0.22000.0`
 
-Patch-release compatibility note:
+Compatibility note:
 
-- `1.0.1` is a compatibility-preserving patch release for the published v1 contract.
-- The public headers remain `include/dxbridge/dxbridge.h` and `include/dxbridge/dxbridge_version.h`.
-- No new exported entry points, struct version bumps, or handle-width changes are declared for `1.0.1`.
+- `1.3.0` is the synchronized release marker in `version.txt`, `README.md`, and `include/dxbridge/dxbridge_version.h`.
+- The additive `v1.3.0` delta is limited to the capability-discovery family: `DXBridge_QueryCapability()`, `DXBCapabilityQuery`, `DXBCapabilityInfo`, and the `DXBCapability` IDs.
+- Existing exports `1` through `43`, handle widths, struct layouts, result codes, and current runtime semantics remain the protected `1.x` baseline.
+- The release framing for that compatible minor lives in `docs/releases/v1.3.0-scope.md`, `docs/releases/v1.3.0-compatible-design.md`, and `docs/releases/v1.3.0-release-notes.md`.
 
 ## Read this first
 
@@ -59,8 +62,8 @@ Before blaming the binding layer, confirm these basics:
 | Macro | Meaning |
 | --- | --- |
 | `DXBRIDGE_VERSION_MAJOR` | Major version (`1`) |
-| `DXBRIDGE_VERSION_MINOR` | Minor version (`0`) |
-| `DXBRIDGE_VERSION_PATCH` | Patch version (`1`) |
+| `DXBRIDGE_VERSION_MINOR` | Minor version (`3`) |
+| `DXBRIDGE_VERSION_PATCH` | Patch version (`0`) |
 | `DXBRIDGE_VERSION` | Packed version: `(major << 16) | (minor << 8) | patch` |
 | `DXBRIDGE_STRUCT_VERSION` | Required struct version for all ABI structs (`1`) |
 
@@ -232,7 +235,7 @@ If the supplied count is smaller than the available adapter count, DXBridge fill
 | Name | Value | Meaning |
 | --- | ---: | --- |
 | `DXB_DEVICE_FLAG_DEBUG` | `0x0001` | Request debug-layer / debug-device behavior where available |
-| `DXB_DEVICE_FLAG_GPU_VALIDATION` | `0x0002` | Reserved in v1.0.1; declared in the ABI but not currently acted on by the implementation |
+| `DXB_DEVICE_FLAG_GPU_VALIDATION` | `0x0002` | Declared in the v1 ABI baseline and not currently acted on by the implementation |
 
 ### `DXBBufferFlags`
 
@@ -273,6 +276,21 @@ If the supplied count is smaller than the available adapter count, DXBridge fill
 | Name | Value | Meaning |
 | --- | ---: | --- |
 | `DXB_FEATURE_DX12` | `0x0001` | Active backend exposes DX12-specific capability |
+
+`DXBridge_SupportsFeature()` remains the legacy active-backend check. It does not report machine-wide availability.
+
+### `DXBCapability`
+
+These IDs are used with the additive `DXBridge_QueryCapability()` family.
+
+| Name | Value | Meaning |
+| --- | ---: | --- |
+| `DXB_CAPABILITY_BACKEND_AVAILABLE` | `1` | Requested backend can create at least one compatible device on this machine |
+| `DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE` | `2` | Requested backend can use its debug layer on this machine |
+| `DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE` | `3` | Requested backend can use GPU validation on this machine |
+| `DXB_CAPABILITY_ADAPTER_COUNT` | `4` | Number of adapters exposed for the requested backend |
+| `DXB_CAPABILITY_ADAPTER_SOFTWARE` | `5` | Whether a specific backend adapter is software / WARP |
+| `DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL` | `6` | Highest feature level available for a specific backend adapter |
 
 ### Shader compile flags
 
@@ -418,6 +436,44 @@ Viewport rectangle and depth range.
 | `min_depth` | `float` | Usually `0.0f` |
 | `max_depth` | `float` | Usually `1.0f` |
 
+### `DXBCapabilityQuery`
+
+Input for `DXBridge_QueryCapability()`.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `struct_version` | `uint32_t` | Set to `DXBRIDGE_STRUCT_VERSION` |
+| `capability` | `DXBCapability` | Capability selector |
+| `backend` | `DXBBackend` | Explicit backend target; current queries require `DX11` or `DX12` |
+| `adapter_index` | `uint32_t` | Used by adapter-scoped capabilities |
+| `format` | `DXBFormat` | Reserved for future additive queries |
+| `device` | `DXBDevice` | Reserved for future additive queries |
+| `reserved[4]` | `uint32_t[4]` | Set to zero |
+
+### `DXBCapabilityInfo`
+
+Output for `DXBridge_QueryCapability()`.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `struct_version` | `uint32_t` | Written by DXBridge as `DXBRIDGE_STRUCT_VERSION` |
+| `capability` | `DXBCapability` | Echo of the requested capability |
+| `backend` | `DXBBackend` | Echo of the requested backend |
+| `adapter_index` | `uint32_t` | Echo of the requested adapter index |
+| `supported` | `uint32_t` | `1` when the requested target resolves successfully |
+| `value_u32` | `uint32_t` | Capability-specific numeric payload |
+| `value_u64` | `uint64_t` | Reserved for future larger payloads |
+| `reserved[4]` | `uint32_t[4]` | Reserved; currently zeroed |
+
+Capability payload rules in `value_u32`:
+
+- `DXB_CAPABILITY_BACKEND_AVAILABLE`: best available feature level for the backend when `supported != 0`
+- `DXB_CAPABILITY_DEBUG_LAYER_AVAILABLE`: best feature level reachable with the debug layer when `supported != 0`
+- `DXB_CAPABILITY_GPU_VALIDATION_AVAILABLE`: best feature level reachable with GPU validation when `supported != 0`
+- `DXB_CAPABILITY_ADAPTER_COUNT`: adapter count; `supported` is always `1` if enumeration succeeded
+- `DXB_CAPABILITY_ADAPTER_SOFTWARE`: `1` for software/WARP, `0` for hardware
+- `DXB_CAPABILITY_ADAPTER_MAX_FEATURE_LEVEL`: highest feature level for the selected adapter
+
 ## Common Usage Patterns
 
 ### Basic startup
@@ -433,6 +489,29 @@ dev.adapter_index = 0;
 DXBDevice device = DXBRIDGE_NULL_HANDLE;
 DXBridge_CreateDevice(&dev, &device);
 ```
+
+### Capability preflight before init
+
+```c
+DXBCapabilityQuery query = {0};
+query.struct_version = DXBRIDGE_STRUCT_VERSION;
+query.capability = DXB_CAPABILITY_BACKEND_AVAILABLE;
+query.backend = DXB_BACKEND_DX12;
+
+DXBCapabilityInfo info = {0};
+info.struct_version = DXBRIDGE_STRUCT_VERSION;
+
+DXBResult r = DXBridge_QueryCapability(&query, &info);
+if (r == DXB_OK && info.supported) {
+    // info.value_u32 contains the best available feature level
+}
+```
+
+Recommended interpretation:
+
+1. use `DXBridge_QueryCapability()` before `DXBridge_Init()` when choosing backend/debug behavior
+2. use `DXBridge_Init()` once you know the preferred backend
+3. keep using `DXBridge_SupportsFeature()` only for active-backend checks after init
 
 ### Adapter enumeration
 
@@ -506,6 +585,11 @@ void DXBridge_SetLogCallback(DXBLogCallback cb, void* user_data);
 
 DXBridge v1 exports the following public entry points from `dxbridge.dll`.
 
+Release framing note:
+
+- ordinals `1` through `43` are the stable pre-`v1.3.0` baseline
+- ordinal `44` is the additive capability-query entry point added by the compatible-growth minor
+
 | Ordinal | Symbol |
 | ---: | --- |
 | 1 | `DXBridge_Init` |
@@ -551,6 +635,7 @@ DXBridge v1 exports the following public entry points from `dxbridge.dll`.
 | 41 | `DXBridge_Present` |
 | 42 | `DXBridge_GetNativeDevice` |
 | 43 | `DXBridge_GetNativeContext` |
+| 44 | `DXBridge_QueryCapability` |
 
 ### Initialization and process lifetime
 
@@ -594,6 +679,23 @@ uint32_t DXBridge_SupportsFeature(uint32_t feature_flag);
 - `feature_flag`: currently `DXB_FEATURE_DX12`.
 - Return value: non-zero if supported, `0` otherwise.
 - Notes: returns `0` before `DXBridge_Init()`.
+
+#### `DXBridge_QueryCapability`
+
+```c
+DXBResult DXBridge_QueryCapability(const DXBCapabilityQuery* query, DXBCapabilityInfo* out_info);
+```
+
+- Queries additive compatibility and capability data without changing the active backend.
+- `query`: capability request; set `struct_version` and choose an explicit backend.
+- `out_info`: result payload; DXBridge rewrites `struct_version` and fills capability-specific fields.
+- Returns `DXB_OK` on a valid query, or `DXB_E_INVALID_ARG` for null pointers, bad `struct_version`, invalid backend, or unknown capability ID.
+- Notes:
+  - works before `DXBridge_Init()`
+  - is the only documented additive public API family in `v1.3.0`
+  - does not reinterpret `DXBridge_SupportsFeature()`
+  - current queries are machine/backend preflight checks, not active-device state inspection
+  - out-of-range adapter queries return `DXB_OK` with `supported = 0`
 
 ### Error inspection
 
@@ -1045,6 +1147,7 @@ void* DXBridge_GetNativeContext(DXBDevice device);
 - Keep structs tightly aligned to the native 64-bit Windows ABI.
 - Treat `void* hwnd` as a pointer-sized Win32 `HWND`.
 - Initialize every `struct_version` field explicitly.
+- Treat `DXBridge_QueryCapability()` as the pre-init compatibility family and `DXBridge_SupportsFeature()` as the active-backend compatibility helper.
 - Model `DXBridge_GetLastError()` as thread-local state, not global state.
 - Keep callbacks strongly reachable from GC-managed languages.
 - Prefer the documented two-call pattern for adapter enumeration.

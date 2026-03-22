@@ -4,12 +4,21 @@
 
 DXBridge v1 includes examples at two levels:
 
-This catalog is aligned with the public `v1.0.1` release.
+This catalog reflects the `v1.3.0` onboarding refresh layered on top of the stable DXBridge v1 line.
 
 - native C++ examples built by CMake
 - language bindings and samples that consume the public DLL ABI directly
 
 The example suites deliberately repeat the same learning path so behavior is easy to compare across runtimes.
+
+## `v1.3.0` release focus
+
+The consumer-facing value of `v1.3.0` is easiest to understand through the examples:
+
+- scenarios 01 through 05 keep the familiar `1.x` flow unchanged
+- scenario 06 adds pre-init capability discovery before backend selection
+- Bun, Node.js, Python, Go, and Rust now expose aligned flags, helper names, and output goals for that onboarding path
+- `examples/run_capability_preflight.ps1` turns the same story into a repeatable cross-runtime smoke run
 
 The scenario numbers are consistent across runtimes even when the final file names differ slightly. In particular, the fifth scenario is the triangle-rendering sample everywhere, but Bun and Node.js use `example05_dx11_triangle.*` while Go, Python, C#, Java, and Rust keep `example05_dx11_moving_triangle.*`.
 
@@ -17,13 +26,14 @@ For folder-level navigation when browsing the repository, see `examples/README.m
 
 ## Scenario model used across examples
 
-Most language folders cover the same five scenarios:
+Most language folders cover the same six scenarios:
 
 1. load the DLL, decode version information, and receive logs
 2. enumerate adapters using the two-call ABI pattern
 3. create a device and inspect thread-local native errors correctly
 4. create a real Win32 window and run a DX11 clear/present loop
 5. render a triangle through shaders, pipeline state, and vertex buffers
+6. preflight backend capability discovery before choosing DX11 vs DX12
 
 That repeated sequence is intentional: it gives each runtime the same progression from simple DLL loading to real rendering.
 
@@ -70,6 +80,7 @@ Key files:
 - `examples/bun/example03_create_device_errors.ts`
 - `examples/bun/example04_dx11_clear_window.ts`
 - `examples/bun/example05_dx11_triangle.ts`
+- `examples/bun/example06_capability_preflight.ts`
 
 Important implementation notes:
 
@@ -107,6 +118,7 @@ Key files:
 - `examples/nodejs/example03_create_device_errors.js`
 - `examples/nodejs/example04_dx11_clear_window.js`
 - `examples/nodejs/example05_dx11_triangle.js`
+- `examples/nodejs/example06_capability_preflight.js`
 
 Important implementation notes:
 
@@ -136,11 +148,32 @@ The repository also contains focused READMEs for:
 
 Those suites reinforce the same ABI-first design and make DXBridge easier to adopt from multiple ecosystems.
 
+For `v1.3.0`, the onboarding-focused capability-preflight coverage is currently strongest in Bun, Node.js, Python, Go, and Rust because those bindings carry the most explicit DLL-discovery and struct-encoding responsibilities.
+
+The release-ready example story keeps scenario 06 aligned across those runtimes:
+
+- the same `--backend all|dx11|dx12` flag shape for the pre-init pass
+- the same optional `--compare-active dx11|dx12` comparison against legacy `DXBridge_SupportsFeature()`
+- a shared PowerShell launcher at `examples/run_capability_preflight.ps1` for quick cross-runtime smoke runs
+
+## Release-oriented first runs
+
+If you only want the fastest `v1.3.0` onboarding checks, start here:
+
+- Bun: `bun run examples/bun/example06_capability_preflight.ts --backend all`
+- Node.js: `node examples/nodejs/example06_capability_preflight.js --backend all`
+- Python: `python examples/python/example_06_capability_preflight.py --backend all`
+- Go: `go run ./cmd/example06_capability_preflight --backend all`
+- Rust: `cargo run --manifest-path examples\rust\Cargo.toml --bin example06_capability_preflight -- --backend all`
+- Cross-runtime: `pwsh -File examples/run_capability_preflight.ps1 -Runtime all -Backend all`
+
 ## Choosing the right example path
 
 - Use `examples/hello_triangle/` if you want the most direct native reference
 - Use `examples/bun/` if you want modern TypeScript plus direct FFI
 - Use `examples/nodejs/` if you want plain JavaScript plus `koffi`
+- Start with the `example06_capability_preflight` variant in each runtime when you need pre-init backend discovery before choosing DX11 vs DX12
+- Use `examples/run_capability_preflight.ps1` when you want to validate the same scenario across multiple runtimes from one entry point
 - Use the other language folders when validating cross-language portability of the ABI
 
 ## Cross-runtime compatibility notes
@@ -151,6 +184,7 @@ Those suites reinforce the same ABI-first design and make DXBridge easier to ado
 - log callbacks must remain strongly reachable in GC-managed runtimes
 - DX11 windowed examples require a real Win32 `HWND`; a fake integer value is not sufficient
 - `DXBridge_GetBackBuffer()` returns a swap-chain-owned handle and does not have a separate public destroy call
+- `DXBridge_QueryCapability()` is the additive pre-init discovery family; `DXBridge_SupportsFeature()` remains active-backend scoped after `DXBridge_Init()`
 
 ## Suggested reading order
 

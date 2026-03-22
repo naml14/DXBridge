@@ -20,6 +20,17 @@ function Resolve-CTestCommand {
         }
     }
 
+    $visualStudioCandidates = @(
+        "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe",
+        "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe"
+    )
+
+    foreach ($candidate in $visualStudioCandidates) {
+        if (Test-Path -Path $candidate) {
+            return $candidate
+        }
+    }
+
     throw "Could not locate ctest. Install CMake or add ctest.exe to PATH."
 }
 

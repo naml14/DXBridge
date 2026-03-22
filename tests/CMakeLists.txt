@@ -33,6 +33,34 @@ target_include_directories(test_dx12_validation PRIVATE
 )
 dxbridge_add_test(test_dx12_validation LABELS unit hardening dx12 smoke)
 
+add_executable(test_capability_discovery unit/test_capability_discovery.cpp)
+target_link_libraries(test_capability_discovery PRIVATE dxbridge)
+target_include_directories(test_capability_discovery PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+dxbridge_add_test(test_capability_discovery LABELS unit hardening abi smoke)
+
+add_custom_command(TARGET test_capability_discovery POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:dxbridge>
+        $<TARGET_FILE_DIR:test_capability_discovery>
+)
+
+add_executable(test_public_abi_contract unit/test_public_abi_contract.cpp)
+target_include_directories(test_public_abi_contract PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+target_compile_definitions(test_public_abi_contract PRIVATE
+    DXB_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+dxbridge_add_test(test_public_abi_contract LABELS unit abi smoke)
+
+add_custom_command(TARGET test_public_abi_contract POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:dxbridge>
+        $<TARGET_FILE_DIR:test_public_abi_contract>
+)
+
 # ---------------------------------------------------------------------------
 # Integration tests (require dxbridge.dll — copy it next to the executable)
 # ---------------------------------------------------------------------------
@@ -75,4 +103,19 @@ add_custom_target(check_smoke
         --output-on-failure
     USES_TERMINAL
     COMMENT "Running dxbridge smoke tests"
+)
+
+add_custom_target(check_abi
+    COMMAND ${CMAKE_CTEST_COMMAND}
+        --test-dir ${CMAKE_BINARY_DIR}
+        -C $<CONFIG>
+        -L abi
+        --output-on-failure
+    USES_TERMINAL
+    COMMENT "Running dxbridge ABI contract tests"
+)
+
+add_dependencies(check_abi
+    test_capability_discovery
+    test_public_abi_contract
 )
