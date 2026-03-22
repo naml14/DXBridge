@@ -335,6 +335,8 @@ function encodeCapabilityQuery(query) {
   writeU32(buffer, 8, query.backend);
   writeU32(buffer, 12, query.adapterIndex ?? 0);
   writeU32(buffer, 16, query.format ?? DXB_FORMAT_UNKNOWN);
+  // offset 20: 4 bytes of implicit padding to align the 64-bit `device` field to offset 24.
+  // Buffer.alloc() zero-fills, so the padding is correctly zeroed without an explicit write.
   writeU64(buffer, 24, query.device ?? DXBRIDGE_NULL_HANDLE);
   return buffer;
 }

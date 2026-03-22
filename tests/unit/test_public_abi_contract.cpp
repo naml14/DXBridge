@@ -28,8 +28,9 @@ static_assert(offsetof(DXBShaderDesc, struct_version) == 0, "DXBShaderDesc versi
 static_assert(offsetof(DXBInputElementDesc, struct_version) == 0, "DXBInputElementDesc version offset changed");
 static_assert(offsetof(DXBDepthStencilDesc, struct_version) == 0, "DXBDepthStencilDesc version offset changed");
 static_assert(offsetof(DXBPipelineDesc, struct_version) == 0, "DXBPipelineDesc version offset changed");
-static_assert(offsetof(DXBCapabilityQuery, struct_version) == 0, "DXBCapabilityQuery version offset changed");
-static_assert(offsetof(DXBCapabilityInfo, struct_version) == 0, "DXBCapabilityInfo version offset changed");
+static_assert(offsetof(DXBCapabilityQuery, struct_version) == 0,  "DXBCapabilityQuery version offset changed");
+static_assert(offsetof(DXBCapabilityQuery, device)        == 24, "DXBCapabilityQuery 'device' must be at offset 24 (4-byte explicit pad after 'format')");
+static_assert(offsetof(DXBCapabilityInfo, struct_version) == 0,  "DXBCapabilityInfo version offset changed");
 
 static_assert(sizeof(DXBAdapterInfo) == 168, "DXBAdapterInfo layout changed unexpectedly");
 static_assert(sizeof(DXBDeviceDesc) == 16, "DXBDeviceDesc layout changed unexpectedly");

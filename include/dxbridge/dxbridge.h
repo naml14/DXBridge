@@ -173,12 +173,24 @@ typedef struct DXBViewport {
     float max_depth;    // typically 1.0f
 } DXBViewport;
 
+// DXBCapabilityQuery — 48 bytes, 8-byte aligned (matches DXBDevice alignment)
+// Explicit field layout (MSVC x64, no packing pragmas):
+//   offset  0: struct_version  (4)
+//   offset  4: capability      (4)
+//   offset  8: backend         (4)
+//   offset 12: adapter_index   (4)
+//   offset 16: format          (4)
+//   offset 20: _pad            (4) — explicit padding; aligns 'device' to 8 bytes
+//   offset 24: device          (8)
+//   offset 32: reserved[4]    (16)
+//   total  = 48 bytes
 typedef struct DXBCapabilityQuery {
     uint32_t      struct_version;
     DXBCapability capability;
-    DXBBackend    backend;          // explicit backend target; AUTO is invalid for current queries
+    DXBBackend    backend;          // explicit backend target; DXB_BACKEND_AUTO is invalid for current queries
     uint32_t      adapter_index;    // used by adapter capabilities
     DXBFormat     format;           // reserved for future format capabilities
+    uint32_t      _pad;             // explicit padding — do not use; keeps 'device' at offset 24
     DXBDevice     device;           // reserved for future device-scoped capabilities
     uint32_t      reserved[4];
 } DXBCapabilityQuery;
@@ -205,8 +217,9 @@ static_assert(offsetof(DXBShaderDesc,     struct_version) == 0, "struct_version 
 static_assert(offsetof(DXBInputElementDesc,struct_version)== 0, "struct_version must be at offset 0");
 static_assert(offsetof(DXBDepthStencilDesc,struct_version)== 0, "struct_version must be at offset 0");
 static_assert(offsetof(DXBPipelineDesc,   struct_version) == 0, "struct_version must be at offset 0");
-static_assert(offsetof(DXBCapabilityQuery,struct_version) == 0, "struct_version must be at offset 0");
-static_assert(offsetof(DXBCapabilityInfo, struct_version) == 0, "struct_version must be at offset 0");
+static_assert(offsetof(DXBCapabilityQuery,struct_version) == 0,  "struct_version must be at offset 0");
+static_assert(offsetof(DXBCapabilityQuery,device)        == 24, "DXBCapabilityQuery: 'device' must be at offset 24");
+static_assert(offsetof(DXBCapabilityInfo, struct_version) == 0,  "struct_version must be at offset 0");
 
 static_assert(sizeof(DXBDevice)       == 8, "handle must be 8 bytes");
 static_assert(sizeof(DXBSwapChain)    == 8, "handle must be 8 bytes");

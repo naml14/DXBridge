@@ -41,103 +41,82 @@ bool CreateFactory(ComPtr<IDXGIFactory1>* out_factory1) {
     return SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(out_factory1->ReleaseAndGetAddressOf())));
 }
 
-bool EnumerateDX11Adapters(std::vector<AdapterEntry>* out_entries) {
-    if (!out_entries) {
+// Fills |out_raw| with every adapter the DXGI factory exposes, preserving the
+// IDXGIFactory6 GPU-preference ordering when available, and falling back to
+// IDXGIFactory1 otherwise.  Software/WARP classification is recorded in
+// AdapterEntry::is_software but no filtering is applied — callers decide policy.
+// Returns false only when the factory itself cannot be created.
+bool EnumerateRawAdapters(std::vector<AdapterEntry>* out_raw, ComPtr<IDXGIFactory1>* out_factory1) {
+    if (!out_raw || !out_factory1) {
         return false;
     }
 
-    out_entries->clear();
+    out_raw->clear();
 
-    ComPtr<IDXGIFactory1> factory1;
-    if (!CreateFactory(&factory1)) {
+    if (!CreateFactory(out_factory1)) {
         return false;
     }
 
     ComPtr<IDXGIFactory6> factory6;
-    if (SUCCEEDED(factory1.As(&factory6))) {
+    if (SUCCEEDED(out_factory1->As(&factory6))) {
         for (uint32_t i = 0; ; ++i) {
             ComPtr<IDXGIAdapter1> adapter;
             const HRESULT hr = factory6->EnumAdapterByGpuPreference(
                 i,
                 DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
                 IID_PPV_ARGS(adapter.ReleaseAndGetAddressOf()));
-            if (hr == DXGI_ERROR_NOT_FOUND) {
-                break;
-            }
-            if (FAILED(hr)) {
+            if (hr == DXGI_ERROR_NOT_FOUND || FAILED(hr)) {
                 break;
             }
 
-            out_entries->push_back(AdapterEntry{adapter, IsSoftwareAdapter(adapter.Get())});
+            out_raw->push_back(AdapterEntry{adapter, IsSoftwareAdapter(adapter.Get())});
         }
     } else {
         for (uint32_t i = 0; ; ++i) {
             ComPtr<IDXGIAdapter1> adapter;
-            const HRESULT hr = factory1->EnumAdapters1(i, adapter.ReleaseAndGetAddressOf());
-            if (hr == DXGI_ERROR_NOT_FOUND) {
-                break;
-            }
-            if (FAILED(hr)) {
+            const HRESULT hr = (*out_factory1)->EnumAdapters1(i, adapter.ReleaseAndGetAddressOf());
+            if (hr == DXGI_ERROR_NOT_FOUND || FAILED(hr)) {
                 break;
             }
 
-            out_entries->push_back(AdapterEntry{adapter, IsSoftwareAdapter(adapter.Get())});
+            out_raw->push_back(AdapterEntry{adapter, IsSoftwareAdapter(adapter.Get())});
         }
     }
 
     return true;
 }
 
+// DX11 policy: include all adapters (hardware + software).
+bool EnumerateDX11Adapters(std::vector<AdapterEntry>* out_entries) {
+    if (!out_entries) {
+        return false;
+    }
+
+    ComPtr<IDXGIFactory1> factory1;
+    return EnumerateRawAdapters(out_entries, &factory1);
+}
+
+// DX12 policy: hardware-only adapters ordered by GPU preference, plus the WARP
+// software adapter appended last (explicit via IDXGIFactory4::EnumWarpAdapter).
 bool EnumerateDX12Adapters(std::vector<AdapterEntry>* out_entries) {
     if (!out_entries) {
         return false;
     }
 
-    out_entries->clear();
-
     ComPtr<IDXGIFactory1> factory1;
-    if (!CreateFactory(&factory1)) {
+    std::vector<AdapterEntry> raw;
+    if (!EnumerateRawAdapters(&raw, &factory1)) {
         return false;
     }
 
-    ComPtr<IDXGIFactory6> factory6;
-    if (SUCCEEDED(factory1.As(&factory6))) {
-        for (uint32_t i = 0; ; ++i) {
-            ComPtr<IDXGIAdapter1> adapter;
-            const HRESULT hr = factory6->EnumAdapterByGpuPreference(
-                i,
-                DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-                IID_PPV_ARGS(adapter.ReleaseAndGetAddressOf()));
-            if (hr == DXGI_ERROR_NOT_FOUND) {
-                break;
-            }
-            if (FAILED(hr)) {
-                break;
-            }
-            if (IsSoftwareAdapter(adapter.Get())) {
-                continue;
-            }
-
-            out_entries->push_back(AdapterEntry{adapter, false});
-        }
-    } else {
-        for (uint32_t i = 0; ; ++i) {
-            ComPtr<IDXGIAdapter1> adapter;
-            const HRESULT hr = factory1->EnumAdapters1(i, adapter.ReleaseAndGetAddressOf());
-            if (hr == DXGI_ERROR_NOT_FOUND) {
-                break;
-            }
-            if (FAILED(hr)) {
-                break;
-            }
-            if (IsSoftwareAdapter(adapter.Get())) {
-                continue;
-            }
-
-            out_entries->push_back(AdapterEntry{adapter, false});
+    out_entries->clear();
+    for (AdapterEntry& entry : raw) {
+        if (!entry.is_software) {
+            out_entries->push_back(std::move(entry));
         }
     }
 
+    // Append the WARP software adapter last, explicitly via IDXGIFactory4.
     ComPtr<IDXGIFactory4> factory4;
     if (SUCCEEDED(factory1.As(&factory4))) {
         ComPtr<IDXGIAdapter1> warp;
