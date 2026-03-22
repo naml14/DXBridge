@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.2.0](https://github.com/naml14/DXBridge/compare/v1.1.2...v1.2.0) (2026-03-22)
+
+
+### Features
+
+* add build and upload steps for release artifacts in CI workflow ([e1b5d1a](https://github.com/naml14/DXBridge/commit/e1b5d1a8ca721c5a8cd2eb3a56e5b1c7cd23fda9))
+
 ## [1.1.2](https://github.com/naml14/DXBridge/compare/v1.1.1...v1.1.2) (2026-03-22)
 
 
