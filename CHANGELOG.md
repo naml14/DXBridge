@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.1.1](https://github.com/naml14/DXBridge/compare/v1.1.0...v1.1.1) (2026-03-22)
+
+
+### Bug Fixes
+
+* update release notes formatting to include markdown fence ([930b2ab](https://github.com/naml14/DXBridge/commit/930b2abc99fe32d303a6b5683443c757b8b8fce0))
+
 ## [1.1.0](https://github.com/naml14/DXBridge/compare/v1.0.1...v1.1.0) (2026-03-22)
 
 
