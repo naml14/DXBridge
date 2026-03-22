@@ -2,7 +2,7 @@
 
 ## Overview
 
-This folder contains the publication-ready DXBridge v1 example suites. Each language folder documents the same core learning path so behavior is easy to compare across runtimes.
+This folder contains the publication-ready DXBridge v1 example suites aligned with release `v1.0.1`. Each language folder documents the same core learning path so behavior is easy to compare across runtimes.
 
 The shared progression is:
 

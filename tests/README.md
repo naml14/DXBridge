@@ -13,9 +13,9 @@ DXBridge tests are organized into small CTest labels so local runs and CI can us
 Examples:
 
 ```powershell
-ctest --test-dir build\debug -C Debug --output-on-failure
-ctest --test-dir build\debug -C Debug -L smoke --output-on-failure
-cmake --build build\debug --config Debug --target check_smoke
+pwsh -File scripts\run-ctest.ps1 -Preset debug
+pwsh -File scripts\run-ctest.ps1 -Preset debug -Label smoke
+cmake --build --preset debug --target check_smoke
 ```
 
 ## How to use the labels

@@ -223,10 +223,16 @@ def locate_dxbridge_dll(explicit_path: str | None = None) -> Path:
     candidates.extend(
         [
             Path.cwd() / "dxbridge.dll",
-            repo_root / "build" / "debug" / "Debug" / "dxbridge.dll",
-            repo_root / "build" / "debug" / "examples" / "Debug" / "dxbridge.dll",
-            repo_root / "build" / "debug" / "tests" / "Debug" / "dxbridge.dll",
-            repo_root / "out" / "build" / "ci" / "Debug" / "dxbridge.dll",
+            repo_root / "out" / "build" / "debug" / "Debug" / "dxbridge.dll",
+            repo_root
+            / "out"
+            / "build"
+            / "debug"
+            / "examples"
+            / "Debug"
+            / "dxbridge.dll",
+            repo_root / "out" / "build" / "debug" / "tests" / "Debug" / "dxbridge.dll",
+            repo_root / "out" / "build" / "ci" / "Release" / "dxbridge.dll",
         ]
     )
 
@@ -375,7 +381,11 @@ class DXBridgeLibrary:
         ]
         self.dll.DXBridge_CreateBuffer.restype = ctypes.c_int32
 
-        self.dll.DXBridge_UploadData.argtypes = [DXBBuffer, ctypes.c_void_p, ctypes.c_uint32]
+        self.dll.DXBridge_UploadData.argtypes = [
+            DXBBuffer,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+        ]
         self.dll.DXBridge_UploadData.restype = ctypes.c_int32
 
         self.dll.DXBridge_DestroyBuffer.argtypes = [DXBBuffer]
@@ -400,7 +410,10 @@ class DXBridgeLibrary:
         ]
         self.dll.DXBridge_ClearDepthStencil.restype = ctypes.c_int32
 
-        self.dll.DXBridge_SetViewport.argtypes = [DXBDevice, ctypes.POINTER(DXBViewport)]
+        self.dll.DXBridge_SetViewport.argtypes = [
+            DXBDevice,
+            ctypes.POINTER(DXBViewport),
+        ]
         self.dll.DXBridge_SetViewport.restype = ctypes.c_int32
 
         self.dll.DXBridge_SetPipeline.argtypes = [DXBDevice, DXBPipeline]
@@ -705,9 +718,7 @@ class DXBridgeLibrary:
             size = byte_size if byte_size is not None else ctypes.sizeof(data)
 
         self.raise_for_result(
-            self.dll.DXBridge_UploadData(
-                DXBBuffer(buffer), ptr, ctypes.c_uint32(size)
-            ),
+            self.dll.DXBridge_UploadData(DXBBuffer(buffer), ptr, ctypes.c_uint32(size)),
             "DXBridge_UploadData",
         )
 

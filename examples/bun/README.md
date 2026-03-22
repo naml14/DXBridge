@@ -28,15 +28,18 @@ The helper searches these locations automatically:
 - `DXBRIDGE_DLL`
 - the current working directory
 - `examples/bun/dxbridge.dll`
-- `build/debug/Debug/dxbridge.dll`
-- `build/debug/examples/Debug/dxbridge.dll`
-- `build/debug/tests/Debug/dxbridge.dll`
-- `out/build/ci/Debug/dxbridge.dll`
+- `out/build/debug/Debug/dxbridge.dll`
+- `out/build/debug/examples/Debug/dxbridge.dll`
+- `out/build/debug/tests/Debug/dxbridge.dll`
+- `out/build/release/Release/dxbridge.dll`
+- `out/build/release/examples/Release/dxbridge.dll`
+- `out/build/release/tests/Release/dxbridge.dll`
+- `out/build/ci/Release/dxbridge.dll`
 
 You can override the DLL path explicitly:
 
 ```bat
-bun run examples/bun/example01_load_version_logs.ts --dll D:\trabajo\TestDLL\proyect\build\debug\Debug\dxbridge.dll
+bun run examples/bun/example01_load_version_logs.ts --dll D:\trabajo\TestDLL\proyect\out\build\debug\Debug\dxbridge.dll
 ```
 
 ## How to run
@@ -61,12 +64,15 @@ bun run example04_dx11_clear_window.ts --hidden --frames 3
 bun run example05_dx11_triangle.ts --hidden --frames 3 --sync-interval 0
 ```
 
+No extra package install step is required for this Bun suite because the examples only use Bun built-ins plus the local `.ts` files in this folder.
+
 ## Notes
 
 - Every ABI struct passed into `dxbridge.dll` must set `struct_version = DXBRIDGE_STRUCT_VERSION`.
 - `DXBridge_GetLastError()` is thread-local. Read it immediately after a failing call on the same thread.
 - The log callback must stay alive on the Bun side while native code still holds its pointer.
 - Handles are represented as 64-bit values, so the shared helper uses `bigint` for `DXBDevice` and other opaque handles.
+- `example05` is the triangle-rendering scenario for this runtime; unlike some other language folders, the file name here is `example05_dx11_triangle.ts` rather than `example05_dx11_moving_triangle.*`.
 - DX11 swap chains need a real Win32 `HWND`. The helper creates an actual window, and `--hidden` only hides it visually.
 - The Bun bindings manually encode ABI structs with 64-bit Windows alignment, so swap-chain, shader, pipeline, and viewport layouts must stay in sync with `include/dxbridge/dxbridge.h`.
 

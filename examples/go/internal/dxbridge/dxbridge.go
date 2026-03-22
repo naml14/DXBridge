@@ -763,10 +763,10 @@ func locateDLL(explicitPath string) (string, error) {
 		}
 		repoRoot := findRepoRoot(filepath.Dir(sourceFile))
 		if repoRoot != "" {
-			add(filepath.Join(repoRoot, "build", "debug", "Debug", "dxbridge.dll"))
-			add(filepath.Join(repoRoot, "build", "debug", "examples", "Debug", "dxbridge.dll"))
-			add(filepath.Join(repoRoot, "build", "debug", "tests", "Debug", "dxbridge.dll"))
-			add(filepath.Join(repoRoot, "out", "build", "ci", "Debug", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "debug", "Debug", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "debug", "examples", "Debug", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "debug", "tests", "Debug", "dxbridge.dll"))
+			add(filepath.Join(repoRoot, "out", "build", "ci", "Release", "dxbridge.dll"))
 		}
 	}
 

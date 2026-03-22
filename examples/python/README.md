@@ -26,14 +26,15 @@ The helper searches these locations automatically:
 
 - `DXBRIDGE_DLL`
 - the current working directory
-- `build/debug/Debug/dxbridge.dll`
-- `build/debug/examples/Debug/dxbridge.dll`
-- `build/debug/tests/Debug/dxbridge.dll`
+- `out/build/debug/Debug/dxbridge.dll`
+- `out/build/debug/examples/Debug/dxbridge.dll`
+- `out/build/debug/tests/Debug/dxbridge.dll`
+- `out/build/ci/Release/dxbridge.dll`
 
 You can override the DLL path explicitly:
 
 ```powershell
-python examples/python/example_01_load_version_logs.py --dll build/debug/Debug/dxbridge.dll
+python examples/python/example_01_load_version_logs.py --dll out/build/debug/Debug/dxbridge.dll
 ```
 
 ## How to run

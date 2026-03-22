@@ -30,15 +30,18 @@ The helper searches these locations automatically:
 - `DXBRIDGE_DLL`
 - the current working directory
 - `examples/nodejs/dxbridge.dll`
-- `build/debug/Debug/dxbridge.dll`
-- `build/debug/examples/Debug/dxbridge.dll`
-- `build/debug/tests/Debug/dxbridge.dll`
-- `out/build/ci/Debug/dxbridge.dll`
+- `out/build/debug/Debug/dxbridge.dll`
+- `out/build/debug/examples/Debug/dxbridge.dll`
+- `out/build/debug/tests/Debug/dxbridge.dll`
+- `out/build/release/Release/dxbridge.dll`
+- `out/build/release/examples/Release/dxbridge.dll`
+- `out/build/release/tests/Release/dxbridge.dll`
+- `out/build/ci/Release/dxbridge.dll`
 
 You can override the DLL path explicitly:
 
 ```bat
-node examples/nodejs/example01_load_version_logs.js --dll D:\trabajo\TestDLL\proyect\build\debug\Debug\dxbridge.dll
+node examples/nodejs/example01_load_version_logs.js --dll D:\trabajo\TestDLL\proyect\out\build\debug\Debug\dxbridge.dll
 ```
 
 ## How to run
@@ -46,14 +49,15 @@ node examples/nodejs/example01_load_version_logs.js --dll D:\trabajo\TestDLL\pro
 Install dependencies from `examples/nodejs`:
 
 ```bat
-npm install
+npm ci
 ```
 
-This installs `koffi` locally inside `examples/nodejs/node_modules` and does not change the repository root.
+This installs the exact `koffi` version recorded in `examples/nodejs/package-lock.json` inside `examples/nodejs/node_modules` and does not change the repository root.
 
 From the repository root:
 
 ```bat
+npm --prefix examples/nodejs ci
 node examples/nodejs/example01_load_version_logs.js
 node examples/nodejs/example02_enumerate_adapters.js
 node examples/nodejs/example03_create_device_errors.js --backend dx11
@@ -77,6 +81,7 @@ npm run example05 -- --hidden --frames 3 --sync-interval 0
 - `DXBridge_GetLastError()` is thread-local. Read it immediately after a failing call on the same thread.
 - The log callback and Win32 window procedure must stay alive on the Node.js side while native code still holds their function pointers.
 - Handles are represented as 64-bit values, so the helper uses `bigint` for devices, swap chains, shaders, and other opaque handles.
+- `example05` is the triangle-rendering scenario for this runtime; unlike some other language folders, the file name here is `example05_dx11_triangle.js` rather than `example05_dx11_moving_triangle.*`.
 - DX11 swap chains need a real Win32 `HWND`. The helper creates an actual desktop window, and `--hidden` only hides it visually.
 - The Node.js bindings manually encode the ABI structs so their 64-bit Windows layout stays aligned with `include/dxbridge/dxbridge.h`.
 
@@ -85,7 +90,7 @@ npm run example05 -- --hidden --frames 3 --sync-interval 0
 Recommended local checks:
 
 ```bat
-npm install
+npm ci
 node examples/nodejs/example01_load_version_logs.js
 node examples/nodejs/example02_enumerate_adapters.js
 node examples/nodejs/example03_create_device_errors.js --debug

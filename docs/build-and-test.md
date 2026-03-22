@@ -25,14 +25,14 @@ From the repository root:
 ```bat
 cmake --preset debug
 cmake --build --preset debug
-ctest --test-dir build\debug -C Debug --output-on-failure
+pwsh -File scripts\run-ctest.ps1 -Preset debug
 ```
 
 Optional smoke-only pass:
 
 ```bat
-ctest --test-dir build\debug -C Debug -L smoke --output-on-failure
-cmake --build build\debug --config Debug --target check_smoke
+pwsh -File scripts\run-ctest.ps1 -Preset debug -Label smoke
+cmake --build --preset debug --target check_smoke
 ```
 
 ## CMake presets
@@ -45,6 +45,8 @@ The repository defines three presets in `CMakePresets.json`:
 | `release` | Visual Studio 2022, x64, Release | optimized local build |
 | `ci` | Visual Studio 2022, x64, Release | CI-style build with matching `ctest --preset ci` |
 
+Each preset now writes into `out/build/<preset>` so configure and generated Visual Studio files do not spill into the repository root.
+
 ## Configure and build
 
 ### Debug
@@ -54,6 +56,8 @@ cmake --preset debug
 cmake --build --preset debug
 ```
 
+Outputs land under `out\build\debug\`.
+
 ### Release
 
 ```bat
@@ -61,12 +65,16 @@ cmake --preset release
 cmake --build --preset release
 ```
 
+Outputs land under `out\build\release\`.
+
 ### CI-style build
 
 ```bat
 cmake --preset ci
 cmake --build --preset ci
 ```
+
+Outputs land under `out\build\ci\`.
 
 ## Expected outputs
 
@@ -96,20 +104,36 @@ Warnings are treated as errors, so a successful build implies the active target 
 ### Full suite
 
 ```bat
-ctest --test-dir build\debug -C Debug --output-on-failure
+pwsh -File scripts\run-ctest.ps1 -Preset debug
 ```
 
 ### Smoke subset
 
 ```bat
-ctest --test-dir build\debug -C Debug -L smoke --output-on-failure
-cmake --build build\debug --config Debug --target check_smoke
+pwsh -File scripts\run-ctest.ps1 -Preset debug -Label smoke
+cmake --build --preset debug --target check_smoke
 ```
 
 ### CI preset tests
 
 ```bat
-ctest --preset ci
+pwsh -File scripts\run-ctest.ps1 -Preset ci
+```
+
+Use the PowerShell wrapper when possible on Windows so Git Bash and PowerShell invoke the same preset-based `ctest` path.
+
+## Version verification
+
+Before cutting or validating a patch release, re-check the synchronized version metadata:
+
+```bat
+pwsh -File scripts\verify-version.ps1 -SkipBinaryCheck
+```
+
+After building a preset, you can also verify the generated DLL export version:
+
+```bat
+pwsh -File scripts\verify-version.ps1 -Preset release -Configuration Release
 ```
 
 ## Test organization
@@ -144,8 +168,8 @@ These commands validate the published example paths against a built DLL.
 ### Native C++
 
 ```bat
-build\debug\Debug\hello_triangle.exe --self-test
-build\debug\Debug\hello_triangle_dx12.exe
+out\build\debug\Debug\hello_triangle.exe --self-test
+out\build\debug\Debug\hello_triangle_dx12.exe
 ```
 
 ### Bun
@@ -161,7 +185,7 @@ bun run examples/bun/example05_dx11_triangle.ts --hidden --frames 3 --sync-inter
 ### Node.js
 
 ```bat
-npm --prefix examples/nodejs install
+npm --prefix examples/nodejs ci
 node examples/nodejs/example01_load_version_logs.js
 node examples/nodejs/example02_enumerate_adapters.js
 node examples/nodejs/example03_create_device_errors.js --debug
@@ -173,12 +197,17 @@ node examples/nodejs/example05_dx11_triangle.js --hidden --frames 3 --sync-inter
 
 See the runtime-specific READMEs for Go, Python, C#, Java, and Rust under `examples/`.
 
+Reproducibility notes:
+
+- Bun examples do not require a package install step because they only use Bun built-ins plus the checked-in `.ts` sources.
+- Node.js examples commit `examples/nodejs/package-lock.json`, so `npm ci` is the preferred install path for repeatable local and CI runs.
+
 ## Validation ladder
 
 When diagnosing a new machine or a packaging issue, use this order:
 
 1. build the DLL with `cmake --build --preset debug`
-2. run `ctest --test-dir build\debug -C Debug --output-on-failure`
+2. run `pwsh -File scripts\run-ctest.ps1 -Preset debug`
 3. run the native DX11 smoke example
 4. run one non-windowed language example such as Bun or Node.js example 01
 5. run one hidden windowed example with `--frames 3`

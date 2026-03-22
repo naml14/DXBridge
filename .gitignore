@@ -30,6 +30,35 @@
 # Test and local artifacts
 /Testing/
 /nul
+/CMakeCache.txt
+/CMakeFiles/
+/CTestTestfile.cmake
+/cmake_install.cmake
+/dxbridge.sln
+/ALL_BUILD.vcxproj
+/ALL_BUILD.vcxproj.filters
+/RUN_TESTS.vcxproj
+/RUN_TESTS.vcxproj.filters
+/ZERO_CHECK.vcxproj
+/ZERO_CHECK.vcxproj.filters
+/dxbridge.vcxproj
+/dxbridge.vcxproj.filters
+/dxbridge_common.vcxproj
+/dxbridge_common.vcxproj.filters
+/dxbridge_dx11.vcxproj
+/dxbridge_dx11.vcxproj.filters
+/dxbridge_dx12.vcxproj
+/dxbridge_dx12.vcxproj.filters
+/examples/CMakeFiles/
+/examples/CTestTestfile.cmake
+/examples/cmake_install.cmake
+/examples/*.vcxproj
+/examples/*.vcxproj.filters
+/tests/CMakeFiles/
+/tests/CTestTestfile.cmake
+/tests/cmake_install.cmake
+/tests/*.vcxproj
+/tests/*.vcxproj.filters
 
 # OS/editor noise
 .DS_Store

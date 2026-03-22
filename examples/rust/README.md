@@ -40,15 +40,15 @@ The helper searches these locations automatically:
 - `examples/rust/dxbridge.dll`
 - the current working directory
 - the running executable directory
-- `build/debug/Debug/dxbridge.dll`
-- `build/debug/examples/Debug/dxbridge.dll`
-- `build/debug/tests/Debug/dxbridge.dll`
-- `out/build/ci/Debug/dxbridge.dll`
+- `out/build/debug/Debug/dxbridge.dll`
+- `out/build/debug/examples/Debug/dxbridge.dll`
+- `out/build/debug/tests/Debug/dxbridge.dll`
+- `out/build/ci/Release/dxbridge.dll`
 
 You can override the DLL path explicitly:
 
 ```bat
-cargo run --manifest-path examples\rust\Cargo.toml --bin example01_load_version_logs -- --dll D:\trabajo\TestDLL\proyect\build\debug\Debug\dxbridge.dll
+cargo run --manifest-path examples\rust\Cargo.toml --bin example01_load_version_logs -- --dll D:\trabajo\TestDLL\proyect\out\build\debug\Debug\dxbridge.dll
 ```
 
 ## How to run

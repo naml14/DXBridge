@@ -2,6 +2,11 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+
+concurrency:
+  group: releases-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write

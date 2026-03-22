@@ -29,11 +29,11 @@ cmake --build --preset debug
 Typical commands after a debug build:
 
 ```bat
-build\debug\Debug\hello_triangle.exe --self-test
-build\debug\Debug\hello_triangle_dx12.exe
+out\build\debug\Debug\hello_triangle.exe --self-test
+out\build\debug\Debug\hello_triangle_dx12.exe
 ```
 
-The generated executables are typically placed under the selected build tree, for example `build\debug\Debug\` when using the debug preset.
+The generated executables are typically placed under the selected build tree, for example `out\build\debug\Debug\` when using the debug preset.
 
 ## Notes
 
@@ -48,8 +48,8 @@ Recommended local checks:
 ```bat
 cmake --preset debug
 cmake --build --preset debug
-build\debug\Debug\hello_triangle.exe --self-test
-build\debug\Debug\hello_triangle_dx12.exe
+out\build\debug\Debug\hello_triangle.exe --self-test
+out\build\debug\Debug\hello_triangle_dx12.exe
 ```
 
 ## Troubleshooting

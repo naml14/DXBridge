@@ -8,6 +8,19 @@ The format is inspired by Keep a Changelog and the project uses semantic version
 
 - No unreleased changes recorded yet.
 
+## [1.0.1] - 2026-03-21
+
+Patch release focused on public version consistency and release-documentation alignment.
+
+### Changed
+
+- synchronized repository-level version references to `1.0.1` across release metadata and published docs
+- aligned the README, API reference, and example index docs with the current patch release
+
+### Notes
+
+- `1.0.1` preserves the DXBridge v1 public ABI and focuses on documentation/versioning corrections
+
 ## [1.0.0] - 2026-03-21
 
 First publication-ready DXBridge baseline.

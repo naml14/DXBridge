@@ -1,7 +1,11 @@
 {
   "name": "dxbridge-nodejs-examples",
   "private": true,
+  "packageManager": "npm@11.6.2",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "example01": "node example01_load_version_logs.js",
     "example02": "node example02_enumerate_adapters.js",
