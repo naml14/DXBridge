@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.3.0](https://github.com/naml14/DXBridge/compare/v1.2.0...v1.3.0) (2026-03-22)
+
+
+### Features
+
+* add build and upload steps for release artifacts in CI workflow ([e1b5d1a](https://github.com/naml14/DXBridge/commit/e1b5d1a8ca721c5a8cd2eb3a56e5b1c7cd23fda9))
+* add CI and security review workflows for pull requests ([bf77f5e](https://github.com/naml14/DXBridge/commit/bf77f5e2728a8fc389adc7a9420f404c12f5db34))
+* add release automation configuration and workflows ([ae3eaf6](https://github.com/naml14/DXBridge/commit/ae3eaf6248abf625d16468c4500872a3725f888e))
+* initialize dxbridge v1 repository with 8 different languages examples and full documentation ([97a736d](https://github.com/naml14/DXBridge/commit/97a736d1c4c04fc4fe166dbb3296970f8275e483))
+* release dxbridge v1.3.0 with capability discovery ([56db925](https://github.com/naml14/DXBridge/commit/56db925766b5c494485a1682efb21463a35280a0))
+* release dxbridge v1.3.0 with capability discovery, integration examples, and validation tooling ([e22ce44](https://github.com/naml14/DXBridge/commit/e22ce44c45506508732c0a67bb37947e52b4bb9a))
+* update CI workflows to use actions/checkout@v6 and actions/github-script@v8; add configuration files for AI agent guidelines ([301a42b](https://github.com/naml14/DXBridge/commit/301a42b7c91db998f035c3e36ec9b5af857778c1))
+
+
+### Bug Fixes
+
+* add GH_REPO environment variable to release notes update step ([54cbd60](https://github.com/naml14/DXBridge/commit/54cbd60ceaeeae0317144dcde2c2f342514c1304))
+* format prompt output for security review diff in workflow ([a2fb143](https://github.com/naml14/DXBridge/commit/a2fb143899dd2cda5fec8c38d34d3ddb9b2fe536))
+* update release notes formatting to include markdown fence ([930b2ab](https://github.com/naml14/DXBridge/commit/930b2abc99fe32d303a6b5683443c757b8b8fce0))
+
 ## [1.2.0](https://github.com/naml14/DXBridge/compare/v1.1.2...v1.2.0) (2026-03-22)
 
 
