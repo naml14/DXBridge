@@ -4,10 +4,14 @@
 
 DXBridge v1 includes examples at two levels:
 
+This catalog is aligned with the public `v1.0.1` release.
+
 - native C++ examples built by CMake
 - language bindings and samples that consume the public DLL ABI directly
 
 The example suites deliberately repeat the same learning path so behavior is easy to compare across runtimes.
+
+The scenario numbers are consistent across runtimes even when the final file names differ slightly. In particular, the fifth scenario is the triangle-rendering sample everywhere, but Bun and Node.js use `example05_dx11_triangle.*` while Go, Python, C#, Java, and Rust keep `example05_dx11_moving_triangle.*`.
 
 For folder-level navigation when browsing the repository, see `examples/README.md`.
 
@@ -73,6 +77,7 @@ Important implementation notes:
 - struct layout is manually encoded to stay aligned with the 64-bit Windows ABI
 - log callback lifetime must be managed explicitly on the Bun side
 - DX11 windowed examples require a real `HWND`, not a fake numeric handle
+- the Bun suite is self-contained and does not require a separate package install step
 
 Recommended starting command:
 
@@ -105,7 +110,7 @@ Key files:
 
 Important implementation notes:
 
-- the suite depends on local `koffi` installation in `examples/nodejs/`
+- the suite depends on local `koffi` installation in `examples/nodejs/`; use `npm ci` for a lockfile-reproducible setup
 - opaque handles are represented as `bigint`
 - log callback and Win32 procedure callbacks must remain strongly reachable in JavaScript
 - encoded structs must stay synchronized with the public header layout
@@ -113,7 +118,7 @@ Important implementation notes:
 Install and first run:
 
 ```bat
-npm --prefix examples/nodejs install
+npm --prefix examples/nodejs ci
 node examples/nodejs/example01_load_version_logs.js
 ```
 

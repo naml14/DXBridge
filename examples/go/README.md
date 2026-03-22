@@ -30,15 +30,15 @@ The helper searches these locations automatically:
 
 - `DXBRIDGE_DLL`
 - `examples/go/dxbridge.dll`
-- `build/debug/Debug/dxbridge.dll`
-- `build/debug/examples/Debug/dxbridge.dll`
-- `build/debug/tests/Debug/dxbridge.dll`
-- `out/build/ci/Debug/dxbridge.dll`
+- `out/build/debug/Debug/dxbridge.dll`
+- `out/build/debug/examples/Debug/dxbridge.dll`
+- `out/build/debug/tests/Debug/dxbridge.dll`
+- `out/build/ci/Release/dxbridge.dll`
 
 You can override the DLL path explicitly:
 
 ```bat
-go run ./cmd/example01_load_version_logs --dll D:\trabajo\TestDLL\proyect\build\debug\Debug\dxbridge.dll
+go run ./cmd/example01_load_version_logs --dll D:\trabajo\TestDLL\proyect\out\build\debug\Debug\dxbridge.dll
 ```
 
 ## How to run

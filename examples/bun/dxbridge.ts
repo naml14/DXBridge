@@ -443,10 +443,13 @@ export function locateDXBridgeDLL(explicitPath?: string): string {
     process.env.DXBRIDGE_DLL,
     path.join(process.cwd(), "dxbridge.dll"),
     path.join(here, "dxbridge.dll"),
-    path.join(repoRoot, "build", "debug", "Debug", "dxbridge.dll"),
-    path.join(repoRoot, "build", "debug", "examples", "Debug", "dxbridge.dll"),
-    path.join(repoRoot, "build", "debug", "tests", "Debug", "dxbridge.dll"),
-    path.join(repoRoot, "out", "build", "ci", "Debug", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "debug", "Debug", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "debug", "examples", "Debug", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "debug", "tests", "Debug", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "release", "Release", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "release", "examples", "Release", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "release", "tests", "Release", "dxbridge.dll"),
+    path.join(repoRoot, "out", "build", "ci", "Release", "dxbridge.dll"),
   ].filter((candidate): candidate is string => Boolean(candidate));
 
   for (const candidate of candidates) {

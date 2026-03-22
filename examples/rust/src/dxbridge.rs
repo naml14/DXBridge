@@ -856,6 +856,7 @@ fn locate_dll(explicit_path: Option<&str>) -> AnyResult<PathBuf> {
     if let Some(repo_root) = find_repo_root(&manifest_dir) {
         candidates.push(
             repo_root
+                .join("out")
                 .join("build")
                 .join("debug")
                 .join("Debug")
@@ -863,6 +864,7 @@ fn locate_dll(explicit_path: Option<&str>) -> AnyResult<PathBuf> {
         );
         candidates.push(
             repo_root
+                .join("out")
                 .join("build")
                 .join("debug")
                 .join("examples")
@@ -871,6 +873,7 @@ fn locate_dll(explicit_path: Option<&str>) -> AnyResult<PathBuf> {
         );
         candidates.push(
             repo_root
+                .join("out")
                 .join("build")
                 .join("debug")
                 .join("tests")
@@ -882,7 +885,7 @@ fn locate_dll(explicit_path: Option<&str>) -> AnyResult<PathBuf> {
                 .join("out")
                 .join("build")
                 .join("ci")
-                .join("Debug")
+                .join("Release")
                 .join("dxbridge.dll"),
         );
     }

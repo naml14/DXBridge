@@ -2,7 +2,9 @@
 
 DXBridge is a Windows-native Direct3D bridge distributed as `dxbridge.dll`. It exposes a stable C ABI so native code and higher-level runtimes can drive Direct3D 11 and Direct3D 12 through one handle-based API.
 
-Version `1.0.0` is the first publication-ready baseline of the project. It documents the public ABI, build and test workflow, architecture, and example suites as a coherent v1 release.
+Version `1.0.1` is the current publication-ready patch release of the project. It preserves the documented v1 ABI while aligning the public release metadata, docs, and example guidance after the initial `1.0.0` publication.
+
+For consumers, that means the declared C ABI/API surface remains the same v1 contract from `1.0.0`; `1.0.1` focuses on synchronization, reproducibility guidance, and release-facing cleanup.
 
 ## License and usage restrictions
 
@@ -29,7 +31,7 @@ repository.
 | Topic | Value |
 | --- | --- |
 | Public headers | `include/dxbridge/dxbridge.h`, `include/dxbridge/dxbridge_version.h` |
-| Current version | `1.0.0` |
+| Current version | `1.0.1` |
 | Language standard | C++17 |
 | Backends | Direct3D 11 and Direct3D 12 |
 | Platform | Windows 10/11 |
@@ -58,13 +60,13 @@ From the repository root:
 ```bat
 cmake --preset debug
 cmake --build --preset debug
-ctest --test-dir build\debug -C Debug --output-on-failure
+pwsh -File scripts\run-ctest.ps1 -Preset debug
 ```
 
 Then try one of the documented sample paths:
 
 ```bat
-build\debug\Debug\hello_triangle.exe --self-test
+out\build\debug\Debug\hello_triangle.exe --self-test
 bun run examples/bun/example01_load_version_logs.ts
 node examples/nodejs/example01_load_version_logs.js
 ```
@@ -160,15 +162,15 @@ The CTest suite includes:
 Quick smoke coverage:
 
 ```bat
-ctest --test-dir build\debug -C Debug -L smoke --output-on-failure
-cmake --build build\debug --config Debug --target check_smoke
+pwsh -File scripts\run-ctest.ps1 -Preset debug -Label smoke
+cmake --build --preset debug --target check_smoke
 ```
 
 See `tests/README.md` for label guidance.
 
 ## Release status
 
-`CHANGELOG.md` starts the published history with the initial `1.0.0` release. Future updates should preserve the same repository-level structure so the docs stay stable for consumers and contributors.
+`CHANGELOG.md` now tracks `1.0.1` as the current patch release on top of the initial `1.0.0` baseline. Future updates should preserve the same repository-level structure so the docs stay stable for consumers and contributors.
 
 ## Release automation
 
@@ -187,6 +189,7 @@ Version synchronization rules:
 - `CHANGELOG.md` is updated automatically when a release PR is created
 - `CMakeLists.txt` is kept in sync through the `x-release-please-version` annotation on the project version line
 - `include/dxbridge/dxbridge_version.h` is kept in sync through the `x-release-please-major`, `x-release-please-minor`, and `x-release-please-patch` annotations
+- `scripts/verify-version.ps1` can re-check the synchronized metadata and a built `dxbridge.dll` before or after a release cut
 
 Expected workflow:
 

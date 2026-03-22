@@ -1,12 +1,18 @@
 # API Reference
 
-This document is the reference for the public DXBridge v1 ABI exported by `dxbridge.dll`.
+This document is the reference for the public DXBridge v1 ABI exported by `dxbridge.dll`, aligned with release `1.0.1`.
 
 - Public headers: `include/dxbridge/dxbridge.h`, `include/dxbridge/dxbridge_version.h`
-- Current version: `1.0.0`
+- Current version: `1.0.1`
 - ABI style: C ABI, fixed-width integer types, opaque 64-bit handles
 - Platforms: Windows 10/11, minimum OS noted in the public header as Windows 10 1809
 - Minimum Windows SDK noted in the public header: `10.0.22000.0`
+
+Patch-release compatibility note:
+
+- `1.0.1` is a compatibility-preserving patch release for the published v1 contract.
+- The public headers remain `include/dxbridge/dxbridge.h` and `include/dxbridge/dxbridge_version.h`.
+- No new exported entry points, struct version bumps, or handle-width changes are declared for `1.0.1`.
 
 ## Read this first
 
@@ -54,7 +60,7 @@ Before blaming the binding layer, confirm these basics:
 | --- | --- |
 | `DXBRIDGE_VERSION_MAJOR` | Major version (`1`) |
 | `DXBRIDGE_VERSION_MINOR` | Minor version (`0`) |
-| `DXBRIDGE_VERSION_PATCH` | Patch version (`0`) |
+| `DXBRIDGE_VERSION_PATCH` | Patch version (`1`) |
 | `DXBRIDGE_VERSION` | Packed version: `(major << 16) | (minor << 8) | patch` |
 | `DXBRIDGE_STRUCT_VERSION` | Required struct version for all ABI structs (`1`) |
 
@@ -226,7 +232,7 @@ If the supplied count is smaller than the available adapter count, DXBridge fill
 | Name | Value | Meaning |
 | --- | ---: | --- |
 | `DXB_DEVICE_FLAG_DEBUG` | `0x0001` | Request debug-layer / debug-device behavior where available |
-| `DXB_DEVICE_FLAG_GPU_VALIDATION` | `0x0002` | Reserved in v1.0.0; declared in the ABI but not currently acted on by the implementation |
+| `DXB_DEVICE_FLAG_GPU_VALIDATION` | `0x0002` | Reserved in v1.0.1; declared in the ABI but not currently acted on by the implementation |
 
 ### `DXBBufferFlags`
 

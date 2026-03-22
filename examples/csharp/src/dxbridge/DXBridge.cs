@@ -429,10 +429,10 @@ internal sealed class DXBridge : IDisposable
         var repoRoot = FindRepoRoot(Directory.GetCurrentDirectory()) ?? FindRepoRoot(AppContext.BaseDirectory);
         if (repoRoot is not null)
         {
-            candidates.Add(Path.Combine(repoRoot, "build", "debug", "Debug", "dxbridge.dll"));
-            candidates.Add(Path.Combine(repoRoot, "build", "debug", "examples", "Debug", "dxbridge.dll"));
-            candidates.Add(Path.Combine(repoRoot, "build", "debug", "tests", "Debug", "dxbridge.dll"));
-            candidates.Add(Path.Combine(repoRoot, "out", "build", "ci", "Debug", "dxbridge.dll"));
+            candidates.Add(Path.Combine(repoRoot, "out", "build", "debug", "Debug", "dxbridge.dll"));
+            candidates.Add(Path.Combine(repoRoot, "out", "build", "debug", "examples", "Debug", "dxbridge.dll"));
+            candidates.Add(Path.Combine(repoRoot, "out", "build", "debug", "tests", "Debug", "dxbridge.dll"));
+            candidates.Add(Path.Combine(repoRoot, "out", "build", "ci", "Release", "dxbridge.dll"));
         }
 
         foreach (var candidate in candidates)

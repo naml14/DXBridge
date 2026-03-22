@@ -454,10 +454,10 @@ public final class DXBridge {
 
         File repoRoot = findRepoRoot(cwd);
         if (repoRoot != null) {
-            candidates.add(new File(repoRoot, "build/debug/Debug/dxbridge.dll"));
-            candidates.add(new File(repoRoot, "build/debug/examples/Debug/dxbridge.dll"));
-            candidates.add(new File(repoRoot, "build/debug/tests/Debug/dxbridge.dll"));
-            candidates.add(new File(repoRoot, "out/build/ci/Debug/dxbridge.dll"));
+            candidates.add(new File(repoRoot, "out/build/debug/Debug/dxbridge.dll"));
+            candidates.add(new File(repoRoot, "out/build/debug/examples/Debug/dxbridge.dll"));
+            candidates.add(new File(repoRoot, "out/build/debug/tests/Debug/dxbridge.dll"));
+            candidates.add(new File(repoRoot, "out/build/ci/Release/dxbridge.dll"));
         }
 
         for (int i = 0; i < candidates.size(); i++) {
