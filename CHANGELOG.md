@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.3.1](https://github.com/naml14/DXBridge/compare/v1.3.0...v1.3.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* corregir lectura fuera de límites en UploadData y validar offsets en SetVertexBuffer/SetIndexBuffer ([096dd3d](https://github.com/naml14/DXBridge/commit/096dd3df9d8bc0d117774ec554f5fb6470ce5bc6))
+* corregir lectura fuera de límites en UploadData y validar offsets en SetVertexBuffer/SetIndexBuffer ([d92ccbc](https://github.com/naml14/DXBridge/commit/d92ccbcfa03e442a633a0b00d9f2cd0177e3e2c3))
+
 ## [1.3.0](https://github.com/naml14/DXBridge/compare/v1.2.0...v1.3.0) (2026-03-22)
 
 
