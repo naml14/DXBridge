@@ -310,6 +310,36 @@ static bool TestIndexBufferUnknownFormat() {
     return ok;
 }
 
+static bool TestStaticBufferPartialUpload() {
+    dxb::DX11Backend backend;
+    DXBDevice device = DXBRIDGE_NULL_HANDLE;
+    if (!CreateWarpDevice(backend, &device)) {
+        backend.Shutdown();
+        return true;
+    }
+
+    DXBBufferDesc desc = {};
+    desc.struct_version = DXBRIDGE_STRUCT_VERSION;
+    desc.flags          = DXB_BUFFER_FLAG_VERTEX;
+    desc.byte_size      = 16;
+
+    DXBBuffer buffer = DXBRIDGE_NULL_HANDLE;
+    bool ok = ExpectResult("DX11 CreateBuffer(static vertex)", backend.CreateBuffer(device, &desc, &buffer), DXB_OK);
+    if (ok) {
+        const uint8_t upload_data[4] = { 1u, 2u, 3u, 4u };
+        ok = ExpectResult("DX11 UploadData(static partial)",
+                          backend.UploadData(buffer, upload_data, static_cast<uint32_t>(sizeof(upload_data))),
+                          DXB_OK);
+    }
+
+    if (buffer != DXBRIDGE_NULL_HANDLE) {
+        backend.DestroyBuffer(buffer);
+    }
+    backend.DestroyDevice(device);
+    backend.Shutdown();
+    return ok;
+}
+
 static bool TestInputLayoutInvalidDevice() {
     dxb::DX11Backend backend;
     DXBDevice device = DXBRIDGE_NULL_HANDLE;
@@ -471,6 +501,7 @@ int main() {
     ok = TestSwapChainUnknownFormat() && ok;
     ok = TestDepthStencilUnknownFormat() && ok;
     ok = TestIndexBufferUnknownFormat() && ok;
+    ok = TestStaticBufferPartialUpload() && ok;
     ok = TestInputLayoutInvalidDevice() && ok;
     ok = TestInputLayoutInvalidShaderOrDescriptor() && ok;
     ok = TestPipelineInvalidInputLayoutHandle() && ok;

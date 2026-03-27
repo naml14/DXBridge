@@ -5,6 +5,7 @@
 #include "../common/log.hpp"
 #include <d3d11.h>
 #include <cstring>
+#include <vector>
 
 using Microsoft::WRL::ComPtr;
 
@@ -123,7 +124,14 @@ DXBResult DX11Backend::UploadData(DXBBuffer buf,
         staging_desc.BindFlags      = 0;
 
         D3D11_SUBRESOURCE_DATA init_data = {};
-        init_data.pSysMem = data;
+        std::vector<uint8_t> upload_copy;
+        if (size < obj->byte_size) {
+            upload_copy.assign(obj->byte_size, 0u);
+            memcpy(upload_copy.data(), data, size);
+            init_data.pSysMem = upload_copy.data();
+        } else {
+            init_data.pSysMem = data;
+        }
 
         ComPtr<ID3D11Buffer> staging;
         HRESULT hr = obj->device_ref->CreateBuffer(&staging_desc, &init_data,
