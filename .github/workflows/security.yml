@@ -59,23 +59,20 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          # Share review text across steps without relying on step-scoped GITHUB_OUTPUT files.
+          SECURITY_REVIEW_FILE: ${{ runner.temp }}/gemini-security-review.md
         run: |
           set -euo pipefail
 
           if [[ -z "${GEMINI_API_KEY:-}" ]]; then
-            echo "GEMINI_API_KEY not available (fork PR or missing secret) — skipping AI security review."
-            {
-              DELIM=$(uuidgen)
-              echo "review<<${DELIM}"
-              echo "_Security review skipped: GEMINI_API_KEY secret not available. This is expected for fork PRs._"
-              echo "${DELIM}"
-            } >> "$GITHUB_OUTPUT"
+            echo "GEMINI_API_KEY not available (fork PR or missing secret) -- skipping AI security review."
+            printf "%s\n" "_Security review skipped: GEMINI_API_KEY secret not available. This is expected for fork PRs._" > "$SECURITY_REVIEW_FILE"
             exit 0
           fi
 
           # Read diff material from files written by the previous step.
-          # Never use GitHub Actions expression interpolation for PR-author-controlled content —
-          # that path allows injection via the ${{ }} evaluation layer before the shell sees the value.
+          # Never use GitHub Actions expression interpolation for PR-author-controlled content --
+          # that path allows injection via the \'$'\'{{}}' evaluation layer before the shell sees the value.
           CHANGED_FILES="$(cat changed_files.txt 2>/dev/null || true)"
           DIFF="$(cat pr_truncated.diff 2>/dev/null || true)"
 
@@ -94,7 +91,7 @@ jobs:
           Output format (Markdown):
           ## Summary
           ## Findings
-          - [Severity] File: ... — description + recommendation
+          - [Severity] File: ... -- description + recommendation
           ## Suggested Tests
           ## Notes
 
@@ -144,28 +141,37 @@ jobs:
             exit 1
           fi
 
-          {
-            DELIM=$(uuidgen)
-            echo "review<<${DELIM}"
-            printf "%s\n" "$TEXT"
-            echo "${DELIM}"
-          } >> "$GITHUB_OUTPUT"
+          printf "%s\n" "$TEXT" > "$SECURITY_REVIEW_FILE"
 
-      - name: Comment on PR
+      - name: Post security review on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
         env:
-          REVIEW: ${{ steps.gemini.outputs.review }}
+          SECURITY_REVIEW_FILE: ${{ runner.temp }}/gemini-security-review.md
         with:
           script: |
+            const fs = require('fs');
+            const reviewFile = process.env.SECURITY_REVIEW_FILE || '';
+            if (!reviewFile || !fs.existsSync(reviewFile)) {
+              throw new Error(`Security review file not found: ${reviewFile || '<unset>'}`);
+            }
+
+            const review = fs.readFileSync(reviewFile, 'utf8').trim();
+            if (!review) {
+              throw new Error(`Security review file is empty: ${reviewFile}`);
+            }
+
+            const hasCritical = /^\s*-\s*\[Critical\]\s+/im.test(review);
+
             const body = [
               "## Automated Security Review (Gemini API)",
               "",
-              process.env.REVIEW
+              review
             ].join("\n");
 
-            await github.rest.issues.createComment({
+            await github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              pull_number: context.issue.number,
+              event: hasCritical ? 'REQUEST_CHANGES' : 'COMMENT',
               body
             });
