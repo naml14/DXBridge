@@ -3,6 +3,13 @@ on:
     branches:
       - master
   workflow_dispatch:
+    inputs:
+      tag:
+        description: >
+          Existing tag to build and publish (e.g. v1.4.0).
+          Leave empty for the normal release-please flow.
+        required: false
+        default: ""
 
 permissions: {}
 
@@ -400,6 +407,175 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false
+
+  build-existing-release:
+    # Runs ONLY on manual workflow_dispatch when a tag input is provided.
+    # Bypasses release-please entirely — builds and publishes an already-existing
+    # draft release (e.g. after a failed pipeline that left the tag + draft intact).
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
+    runs-on: windows-2022
+    timeout-minutes: 45
+    concurrency:
+      group: build-existing-${{ inputs.tag }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Validate tag exists on remote
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          echo "Checking that tag ${TAG} exists on remote..."
+          if ! git ls-remote --tags https://github.com/${{ github.repository }} "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "::error::Tag ${TAG} does not exist on remote. Aborting."
+            exit 1
+          fi
+          echo "Tag ${TAG} confirmed on remote."
+
+      - name: Checkout release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@9e326ebed976843c9932b3aa0e021c6f50310eb4  # v0.0.9
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+      - name: Configure sccache for MSVC
+        shell: pwsh
+        run: |
+          echo "SCCACHE_GHA_ENABLED=true" >> $env:GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $env:GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $env:GITHUB_ENV
+
+      - name: Configure (CMake ci preset)
+        shell: pwsh
+        run: cmake --preset ci
+
+      - name: Build (CMake ci preset)
+        shell: pwsh
+        run: cmake --build --preset ci
+
+      - name: Verify synchronized version metadata
+        shell: pwsh
+        run: .\scripts\verify-version.ps1 -Preset ci -Configuration Release
+
+      - name: Run ABI and smoke validation
+        shell: pwsh
+        run: .\scripts\run-ctest.ps1 -Preset ci -Label "abi|smoke"
+
+      - name: Run runtime capability validation smoke
+        shell: pwsh
+        run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll
+
+      - name: Package artifacts
+        shell: pwsh
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          $version = ($env:TAG).TrimStart('v')
+          $outDir  = "dist"
+          New-Item -ItemType Directory -Force $outDir | Out-Null
+
+          Copy-Item "out\build\ci\Release\dxbridge.dll" "$outDir\"
+          Copy-Item "out\build\ci\Release\dxbridge.lib" "$outDir\"
+
+          New-Item -ItemType Directory -Force "$outDir\include\dxbridge" | Out-Null
+          Copy-Item "include\dxbridge\*.h" "$outDir\include\dxbridge\"
+
+          Compress-Archive -Path "$outDir\*" `
+            -DestinationPath "dxbridge-v${version}-win-x64.zip"
+
+          $zipPath = "dxbridge-v${version}-win-x64.zip"
+          $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "dxbridge-v${version}-win-x64.zip.sha256" `
+            -Value "${hash} *${zipPath}" -NoNewline
+
+          $manifest = "Version: ${version}`n" +
+            "Source commit: ${{ github.sha }}`n" +
+            "Included files:`n" +
+            "- dxbridge.dll`n" +
+            "- dxbridge.lib`n" +
+            "- include/dxbridge/dxbridge.h`n" +
+            "- include/dxbridge/dxbridge_version.h"
+          Set-Content -Path "dxbridge-v${version}-win-x64.manifest.txt" -Value $manifest
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        env:
+          TAG: ${{ inputs.tag }}
+        with:
+          path: out/build/ci/Release/
+          output-file: dxbridge-${{ inputs.tag }}-win-x64.spdx.json
+          format: spdx-json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3.10.1
+
+      - name: Sign release zip with cosign (keyless)
+        continue-on-error: true
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          cosign sign-blob --yes \
+            --bundle "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" \
+            "dxbridge-v${VERSION}-win-x64.zip"
+
+      - name: Attest DLL provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+        with:
+          subject-path: out/build/ci/Release/dxbridge.dll
+
+      - name: Attest release zip provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+        with:
+          subject-path: dxbridge-v${{ inputs.tag }}-win-x64.zip
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          gh release upload "$TAG" \
+            "out/build/ci/Release/dxbridge.dll" \
+            "out/build/ci/Release/dxbridge.lib" \
+            "dxbridge-v${VERSION}-win-x64.zip" \
+            "dxbridge-v${VERSION}-win-x64.zip.sha256" \
+            "dxbridge-v${VERSION}-win-x64.manifest.txt" \
+            "dxbridge-${TAG}-win-x64.spdx.json" \
+            --clobber
+
+          if [[ -f "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" ]]; then
+            gh release upload "$TAG" \
+              "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" \
+              --clobber
+          fi
+
+      - name: Publish release (undraft)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
           gh release edit "$TAG" --draft=false
