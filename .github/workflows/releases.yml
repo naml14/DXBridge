@@ -28,37 +28,42 @@ jobs:
           echo "Canonical version: ${VERSION}"
 
       - name: Verify version markers in docs
-        shell: bash
+        shell: python3 {0}
         env:
           VERSION: ${{ steps.read-version.outputs.version }}
         run: |
-          set -euo pipefail
+          import os, re, sys
 
-          # Strip CRLF before grepping — files checked out on Windows or with
-          # core.autocrlf=true have \r\n line endings that silently break
-          # look-ahead anchors in Perl-compatible regexes on Linux runners.
-          README_VERSION=$(tr -d '\r' < README.md | grep -oP '\| Current version \| `\K[0-9]+\.[0-9]+\.[0-9]+(?=` (?:\||<!--))' || true)
-          API_VERSION=$(tr -d '\r' < docs/api-reference.md | grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`\r?)' || true)
+          def read(path):
+              return open(path, encoding="utf-8").read().replace("\r\n", "\n").replace("\r", "\n")
 
-          echo "README.md version: ${README_VERSION}"
-          echo "docs/api-reference.md version: ${API_VERSION}"
-          echo "Expected version: ${VERSION}"
+          version = os.environ["VERSION"].strip()
+          readme  = read("README.md")
+          api_ref = read("docs/api-reference.md")
 
-          if [[ "${README_VERSION}" != "${VERSION}" || "${API_VERSION}" != "${VERSION}" ]]; then
-            cat <<EOF
-          Version documentation is out of sync.
+          readme_match = re.search(r'\| Current version \| `([0-9]+\.[0-9]+\.[0-9]+)`', readme)
+          api_match    = re.search(r'- Current version: `([0-9]+\.[0-9]+\.[0-9]+)`', api_ref)
 
-          Expected version: ${VERSION}
-          README.md version: ${README_VERSION:-<missing>}
-          docs/api-reference.md version: ${API_VERSION:-<missing>}
+          readme_ver = readme_match.group(1) if readme_match else "<missing>"
+          api_ver    = api_match.group(1)    if api_match    else "<missing>"
 
-          Update the docs before merging the release commit.
-          This workflow intentionally refuses to retag or rewrite history after publication.
-          EOF
-            exit 1
-          fi
+          print(f"README.md version:             {readme_ver}")
+          print(f"docs/api-reference.md version: {api_ver}")
+          print(f"Expected version:              {version}")
 
-          echo "Version markers are synchronized."
+          if readme_ver != version or api_ver != version:
+              print()
+              print("Version documentation is out of sync.")
+              print()
+              print(f"Expected version:              {version}")
+              print(f"README.md version:             {readme_ver}")
+              print(f"docs/api-reference.md version: {api_ver}")
+              print()
+              print("Update the docs before merging the release commit.")
+              print("This workflow intentionally refuses to retag or rewrite history after publication.")
+              sys.exit(1)
+
+          print("Version markers are synchronized.")
 
   release-please:
     needs: validate-version-docs
