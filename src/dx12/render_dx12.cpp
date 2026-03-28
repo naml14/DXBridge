@@ -309,7 +309,7 @@ DXBResult DX12Backend::SetVertexBuffer(DXBDevice dev_handle, DXBBuffer buf_handl
         SetLastError(DXB_E_INVALID_HANDLE, "SetVertexBuffer: invalid buffer");
         return DXB_E_INVALID_HANDLE;
     }
-    if (offset >= buf_obj->byte_size) {
+    if (offset > buf_obj->byte_size) {
         SetLastError(DXB_E_INVALID_ARG, "SetVertexBuffer: offset exceeds buffer size");
         return DXB_E_INVALID_ARG;
     }
@@ -345,7 +345,7 @@ DXBResult DX12Backend::SetIndexBuffer(DXBDevice dev_handle, DXBBuffer buf_handle
         SetLastError(DXB_E_INVALID_HANDLE, "SetIndexBuffer: invalid buffer");
         return DXB_E_INVALID_HANDLE;
     }
-    if (offset >= buf_obj->byte_size) {
+    if (offset > buf_obj->byte_size) {
         SetLastError(DXB_E_INVALID_ARG, "SetIndexBuffer: offset exceeds buffer size");
         return DXB_E_INVALID_ARG;
     }

@@ -550,23 +550,23 @@ static bool TestBufferOffsetValidation() {
     if (ok) {
         ok = ExpectResult("SetVertexBuffer(offset == size)",
                           backend.SetVertexBuffer(device, buffer, 4, 16),
-                          DXB_E_INVALID_ARG) && ok;
-        ok = ExpectLastErrorContains("SetVertexBuffer(offset == size) error text",
-                                     "offset exceeds buffer size") && ok;
+                          DXB_OK) && ok;
 
         ok = ExpectResult("SetVertexBuffer(offset > size)",
                           backend.SetVertexBuffer(device, buffer, 4, 20),
                           DXB_E_INVALID_ARG) && ok;
+        ok = ExpectLastErrorContains("SetVertexBuffer(offset > size) error text",
+                                     "offset exceeds buffer size") && ok;
 
         ok = ExpectResult("SetIndexBuffer(offset == size)",
                           backend.SetIndexBuffer(device, buffer, DXB_FORMAT_R32_UINT, 16),
-                          DXB_E_INVALID_ARG) && ok;
-        ok = ExpectLastErrorContains("SetIndexBuffer(offset == size) error text",
-                                     "offset exceeds buffer size") && ok;
+                          DXB_OK) && ok;
 
         ok = ExpectResult("SetIndexBuffer(offset > size)",
                           backend.SetIndexBuffer(device, buffer, DXB_FORMAT_R32_UINT, 20),
                           DXB_E_INVALID_ARG) && ok;
+        ok = ExpectLastErrorContains("SetIndexBuffer(offset > size) error text",
+                                     "offset exceeds buffer size") && ok;
     }
 
     if (buffer != DXBRIDGE_NULL_HANDLE) {

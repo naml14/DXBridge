@@ -214,6 +214,50 @@ static bool CreateWarpDevice(dxb::DX11Backend& backend, DXBDevice* out_device) {
     return true;
 }
 
+static bool ReadBackBufferContents(dxb::DX11Backend& backend,
+                                   DXBDevice device,
+                                   DXBBuffer buffer,
+                                   uint32_t byte_size,
+                                   std::vector<uint8_t>* out_data) {
+    out_data->clear();
+
+    auto* d3d = static_cast<ID3D11Device*>(backend.GetNativeDevice(device));
+    auto* ctx = static_cast<ID3D11DeviceContext*>(backend.GetNativeContext(device));
+    auto* buffer_obj = backend.DebugGetBufferObject(buffer);
+    if (!d3d || !ctx || !buffer_obj || !buffer_obj->buffer) {
+        std::printf("FAIL: ReadBackBufferContents missing native DX11 objects\n");
+        return false;
+    }
+
+    D3D11_BUFFER_DESC staging_desc = {};
+    staging_desc.ByteWidth      = byte_size;
+    staging_desc.Usage          = D3D11_USAGE_STAGING;
+    staging_desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+    Microsoft::WRL::ComPtr<ID3D11Buffer> staging_buffer;
+    HRESULT hr = d3d->CreateBuffer(&staging_desc, nullptr, staging_buffer.ReleaseAndGetAddressOf());
+    if (FAILED(hr)) {
+        std::printf("FAIL: ReadBackBufferContents CreateBuffer(staging) HRESULT=0x%08X\n",
+                    static_cast<unsigned>(hr));
+        return false;
+    }
+
+    ctx->CopyResource(staging_buffer.Get(), buffer_obj->buffer.Get());
+
+    D3D11_MAPPED_SUBRESOURCE mapped = {};
+    hr = ctx->Map(staging_buffer.Get(), 0, D3D11_MAP_READ, 0, &mapped);
+    if (FAILED(hr) || !mapped.pData) {
+        std::printf("FAIL: ReadBackBufferContents Map(staging) HRESULT=0x%08X\n",
+                    static_cast<unsigned>(hr));
+        return false;
+    }
+
+    const auto* bytes = static_cast<const uint8_t*>(mapped.pData);
+    out_data->assign(bytes, bytes + byte_size);
+    ctx->Unmap(staging_buffer.Get(), 0);
+    return true;
+}
+
 static bool TestSwapChainUnknownFormat() {
     dxb::DX11Backend backend;
     DXBDevice device = DXBRIDGE_NULL_HANDLE;
@@ -321,15 +365,47 @@ static bool TestStaticBufferPartialUpload() {
     DXBBufferDesc desc = {};
     desc.struct_version = DXBRIDGE_STRUCT_VERSION;
     desc.flags          = DXB_BUFFER_FLAG_VERTEX;
-    desc.byte_size      = 16;
+    desc.byte_size      = 256;
 
     DXBBuffer buffer = DXBRIDGE_NULL_HANDLE;
     bool ok = ExpectResult("DX11 CreateBuffer(static vertex)", backend.CreateBuffer(device, &desc, &buffer), DXB_OK);
     if (ok) {
-        const uint8_t upload_data[4] = { 1u, 2u, 3u, 4u };
+        const uint8_t upload_data[16] = {
+            0x01u, 0x02u, 0x03u, 0x04u,
+            0x05u, 0x06u, 0x07u, 0x08u,
+            0x09u, 0x0Au, 0x0Bu, 0x0Cu,
+            0x0Du, 0x0Eu, 0x0Fu, 0x10u,
+        };
         ok = ExpectResult("DX11 UploadData(static partial)",
                           backend.UploadData(buffer, upload_data, static_cast<uint32_t>(sizeof(upload_data))),
                           DXB_OK);
+
+        if (ok) {
+            std::vector<uint8_t> readback_data;
+            ok = ReadBackBufferContents(backend, device, buffer, desc.byte_size, &readback_data) && ok;
+            if (ok) {
+                const uint32_t upload_size = static_cast<uint32_t>(sizeof(upload_data));
+                for (uint32_t i = 0; i < upload_size; ++i) {
+                    if (readback_data[i] != upload_data[i]) {
+                        std::printf("FAIL: DX11 UploadData(static partial) mismatch at byte %u: got %u expected %u\n",
+                                    i,
+                                    static_cast<unsigned>(readback_data[i]),
+                                    static_cast<unsigned>(upload_data[i]));
+                        ok = false;
+                        break;
+                    }
+                }
+
+                for (uint32_t i = upload_size; ok && i < desc.byte_size; ++i) {
+                    if (readback_data[i] != 0u) {
+                        std::printf("FAIL: DX11 UploadData(static partial) expected zero padding at byte %u but found %u\n",
+                                    i,
+                                    static_cast<unsigned>(readback_data[i]));
+                        ok = false;
+                    }
+                }
+            }
+        }
     }
 
     if (buffer != DXBRIDGE_NULL_HANDLE) {
