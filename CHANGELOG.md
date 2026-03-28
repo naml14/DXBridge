@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.4.1](https://github.com/naml14/DXBridge/compare/v1.4.0...v1.4.1) (2026-03-28)
+
+
+### Bug Fixes
+
+* add attestations:write permission and fix double-v in zip subject-path ([09a6a9c](https://github.com/naml14/DXBridge/commit/09a6a9c20eca7467ee9d1725881fce8763db23f2))
+
 ## [1.4.0](https://github.com/naml14/DXBridge/compare/v1.3.0...v1.4.0) (2026-03-28)
 
 

@@ -31,7 +31,7 @@ repository.
 | Topic | Value |
 | --- | --- |
 | Public headers | `include/dxbridge/dxbridge.h`, `include/dxbridge/dxbridge_version.h` |
-| Current version | `1.4.0` <!-- x-release-please-version --> |
+| Current version | `1.4.1` <!-- x-release-please-version --> |
 | Language standard | C++17 |
 | Backends | Direct3D 11 and Direct3D 12 |
 | Platform | Windows 10/11 |
