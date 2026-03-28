@@ -61,7 +61,7 @@ function Get-VersionFromReadme {
     param([string]$Path)
 
     $content = Get-Content -Path $Path -Raw
-    $match = [regex]::Match($content, '\| Current version \| `([0-9]+\.[0-9]+\.[0-9]+)` \|')
+    $match = [regex]::Match($content, '\| Current version \| `([0-9]+\.[0-9]+\.[0-9]+)` (?:\||<!--)')
     if (-not $match.Success) {
         throw "Could not parse current version table entry from $Path"
     }
