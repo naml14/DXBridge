@@ -15,10 +15,11 @@ jobs:
   security_review:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
 
@@ -50,17 +51,7 @@ jobs:
 
           # Limit size to reduce request size
           MAX=120000
-          DIFF_CONTENT="$(tail -c "$MAX" pr.diff || true)"
-
-          {
-            echo "changed_files<<EOF"
-            cat changed_files.txt
-            echo "EOF"
-            echo "diff<<EOF"
-            printf "%s" "$DIFF_CONTENT"
-            echo
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          tail -c "$MAX" pr.diff > pr_truncated.diff || cp pr.diff pr_truncated.diff
 
       - name: Security review with Gemini (API key)
         id: gemini
@@ -68,15 +59,25 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
-          CHANGED_FILES: ${{ steps.diff.outputs.changed_files }}
-          DIFF: ${{ steps.diff.outputs.diff }}
         run: |
           set -euo pipefail
 
           if [[ -z "${GEMINI_API_KEY:-}" ]]; then
-            echo "Missing secret GEMINI_API_KEY"
-            exit 1
+            echo "GEMINI_API_KEY not available (fork PR or missing secret) — skipping AI security review."
+            {
+              DELIM=$(uuidgen)
+              echo "review<<${DELIM}"
+              echo "_Security review skipped: GEMINI_API_KEY secret not available. This is expected for fork PRs._"
+              echo "${DELIM}"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          # Read diff material from files written by the previous step.
+          # Never use GitHub Actions expression interpolation for PR-author-controlled content —
+          # that path allows injection via the ${{ }} evaluation layer before the shell sees the value.
+          CHANGED_FILES="$(cat changed_files.txt 2>/dev/null || true)"
+          DIFF="$(cat pr_truncated.diff 2>/dev/null || true)"
 
           MODEL="${GEMINI_MODEL:-gemini-1.5-pro}"
 
@@ -107,7 +108,8 @@ jobs:
 
           # Gemini API (AI Studio) endpoint.
           # Note: model naming can differ; keep GEMINI_MODEL configurable via secret.
-          ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}"
+          ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent"
+          trap 'rm -f payload.json response.json' EXIT
 
           # Build request payload
           jq -n --arg prompt "$PROMPT" '{
@@ -120,10 +122,19 @@ jobs:
             }
           }' > payload.json
 
-          curl -sS -X POST \
+          HTTP_STATUS=$(curl -sS -X POST \
             -H "Content-Type: application/json" \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
             --data-binary @payload.json \
-            "$ENDPOINT" > response.json
+            -o response.json \
+            -w "%{http_code}" \
+            "$ENDPOINT")
+
+          if [[ "$HTTP_STATUS" != "200" ]]; then
+            echo "Gemini API returned HTTP ${HTTP_STATUS}"
+            cat response.json
+            exit 1
+          fi
 
           TEXT=$(jq -r '.candidates[0].content.parts[0].text // empty' response.json)
 
@@ -134,9 +145,10 @@ jobs:
           fi
 
           {
-            echo "review<<EOF"
-            echo "$TEXT"
-            echo "EOF"
+            DELIM=$(uuidgen)
+            echo "review<<${DELIM}"
+            printf "%s\n" "$TEXT"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Post security review on PR
