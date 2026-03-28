@@ -5,7 +5,7 @@ This document is the reference for the public DXBridge v1 ABI exported by `dxbri
 This page documents release `1.3.0`, including the additive capability-growth surface that ships without breaking the existing `1.x` contract.
 
 - Public headers: `include/dxbridge/dxbridge.h`, `include/dxbridge/dxbridge_version.h`
-- Current version: `1.3.0` <!-- x-release-please-version -->
+- Current version: `1.4.0` <!-- x-release-please-version -->
 - ABI style: C ABI, fixed-width integer types, opaque 64-bit handles
 - Platforms: Windows 10/11, minimum OS noted in the public header as Windows 10 1809
 - Minimum Windows SDK noted in the public header: `10.0.22000.0`
