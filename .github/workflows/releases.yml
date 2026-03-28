@@ -34,8 +34,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          README_VERSION=$(grep -oP '\| Current version \| `\K[0-9]+\.[0-9]+\.[0-9]+(?=` \|)' README.md || true)
-          API_VERSION=$(grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`)' docs/api-reference.md || true)
+          # Strip CRLF before grepping — files checked out on Windows or with
+          # core.autocrlf=true have \r\n line endings that silently break
+          # look-ahead anchors in Perl-compatible regexes on Linux runners.
+          README_VERSION=$(tr -d '\r' < README.md | grep -oP '\| Current version \| `\K[0-9]+\.[0-9]+\.[0-9]+(?=` \|)' || true)
+          API_VERSION=$(tr -d '\r' < docs/api-reference.md | grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`)' || true)
 
           echo "README.md version: ${README_VERSION}"
           echo "docs/api-reference.md version: ${API_VERSION}"
