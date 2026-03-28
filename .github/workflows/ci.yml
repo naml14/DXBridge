@@ -18,6 +18,44 @@ permissions:
   contents: read
 
 jobs:
+  check-version-docs:
+    name: Check version markers in docs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Verify version markers match version.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(tr -d '[:space:]' < version.txt)
+          README_VERSION=$(tr -d '\r' < README.md | grep -oP '\| Current version \| `\K[0-9]+\.[0-9]+\.[0-9]+(?=` (?:\||<!--))' || true)
+          API_VERSION=$(tr -d '\r' < docs/api-reference.md | grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`)' || true)
+
+          echo "version.txt:           ${VERSION}"
+          echo "README.md:             ${README_VERSION:-<not found>}"
+          echo "docs/api-reference.md: ${API_VERSION:-<not found>}"
+
+          FAIL=0
+          if [[ "${README_VERSION}" != "${VERSION}" ]]; then
+            echo "::error file=README.md,line=34::Version marker out of sync. Expected \`${VERSION}\`, got \`${README_VERSION:-<not found>}\`. Update README.md line 34."
+            FAIL=1
+          fi
+          if [[ "${API_VERSION}" != "${VERSION}" ]]; then
+            echo "::error file=docs/api-reference.md,line=8::Version marker out of sync. Expected \`${VERSION}\`, got \`${API_VERSION:-<not found>}\`. Update docs/api-reference.md line 8."
+            FAIL=1
+          fi
+          if [[ $FAIL -ne 0 ]]; then
+            echo ""
+            echo "One or more version markers are out of sync with version.txt (${VERSION})."
+            echo "Update the listed files to match version.txt before merging."
+            exit 1
+          fi
+          echo "All version markers are synchronized."
+
   build:
     runs-on: windows-2022
     timeout-minutes: 30
