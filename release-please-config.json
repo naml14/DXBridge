@@ -8,7 +8,9 @@
       "draft": true,
       "extra-files": [
         "CMakeLists.txt",
-        "include/dxbridge/dxbridge_version.h"
+        "include/dxbridge/dxbridge_version.h",
+        { "type": "generic", "path": "README.md" },
+        { "type": "generic", "path": "docs/api-reference.md" }
       ]
     }
   }
