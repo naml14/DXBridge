@@ -20,6 +20,7 @@ permissions:
 jobs:
   build:
     runs-on: windows-2022
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -38,9 +39,11 @@ jobs:
           echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $env:GITHUB_ENV
 
       - name: Configure (CMake ci preset)
+        shell: pwsh
         run: cmake --preset ci
 
       - name: Build (CMake ci preset)
+        shell: pwsh
         run: cmake --build --preset ci
 
       - name: Verify synchronized version metadata
@@ -85,6 +88,7 @@ jobs:
   validate:
     needs: build
     runs-on: windows-2022
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -96,8 +100,19 @@ jobs:
           name: dxbridge-ci-tree-${{ github.sha }}
           path: .
 
+      - name: Verify artifact extraction
+        shell: pwsh
+        run: |
+          $dll = "out\build\ci\Release\dxbridge.dll"
+          if (-not (Test-Path $dll)) {
+            throw "Artifact extraction failed: '$dll' not found. The upload/download path structure may have changed."
+          }
+          Write-Host "Artifact verified: $dll ($([math]::Round((Get-Item $dll).Length / 1KB, 1)) KB)"
+
       - name: Run tests (CTest ci preset via PowerShell wrapper)
+        shell: pwsh
         run: .\scripts\run-ctest.ps1 -Preset ci
 
       - name: Run runtime capability validation smoke
+        shell: pwsh
         run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll

@@ -14,6 +14,7 @@ name: releases
 jobs:
   validate-version-docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
@@ -62,6 +63,7 @@ jobs:
   release-please:
     needs: validate-version-docs
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     concurrency:
       group: release-please-${{ github.ref }}
       cancel-in-progress: false
@@ -101,9 +103,10 @@ jobs:
 
           if [[ -z "${GEMINI_API_KEY:-}" ]]; then
             {
-              echo "notes<<EOF"
+              DELIM=$(uuidgen)
+              echo "notes<<${DELIM}"
               printf "%s\n" "$RAW_NOTES"
-              echo "EOF"
+              echo "${DELIM}"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -167,9 +170,10 @@ jobs:
           fi
 
           {
-            echo "notes<<EOF"
+            DELIM=$(uuidgen)
+            echo "notes<<${DELIM}"
             printf "%s\n" "$TEXT"
-            echo "EOF"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Update GitHub release notes
@@ -189,6 +193,7 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: windows-2022
+    timeout-minutes: 45
     concurrency:
       group: build-artifacts-${{ github.ref }}
       cancel-in-progress: false
@@ -235,19 +240,24 @@ jobs:
 
       - name: Configure (CMake ci preset)
         if: steps.download_artifact.outcome != 'success'
+        shell: pwsh
         run: cmake --preset ci
 
       - name: Build (CMake ci preset)
         if: steps.download_artifact.outcome != 'success'
+        shell: pwsh
         run: cmake --build --preset ci
 
       - name: Verify synchronized version metadata
+        shell: pwsh
         run: .\scripts\verify-version.ps1 -Preset ci -Configuration Release
 
       - name: Run ABI and smoke validation
+        shell: pwsh
         run: .\scripts\run-ctest.ps1 -Preset ci -Label "abi|smoke"
 
       - name: Run runtime capability validation smoke
+        shell: pwsh
         run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll
 
       - name: Package artifacts
