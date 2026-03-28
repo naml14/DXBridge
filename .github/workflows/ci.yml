@@ -59,7 +59,7 @@ jobs:
               "README.md          -> '| Current version | ``$canonical`` |'`n" +
               "docs/api-reference.md -> '- Current version: ``$canonical``'`n" +
               "                   -> 'This page documents release ``$canonical``'`n`n" +
-              "Run: .\scripts\verify-version.ps1 -SkipBinaryCheck  to validate locally."
+              "Run: .\scripts\verify-version.ps1 -SkipBinaryCheck to validate locally."
             Write-Error $msg
             exit 1
           }
