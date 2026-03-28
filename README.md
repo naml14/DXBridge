@@ -139,6 +139,7 @@ Read `docs/architecture.md` for the full design walkthrough.
 | `docs/releases/v1.3.0-compatible-design.md` | Compatibility guardrails and additive design rules for `v1.3.0` |
 | `docs/releases/v1.3.0-release-notes.md` | Release-ready consumer notes for the compatible `v1.3.0` publication |
 | `docs/releases/v1.3.0-publishing-checklist.md` | Release-validation and publication checklist for cutting `v1.3.0` |
+| `docs/releases/verify-artifacts.md` | How to verify checksums, cosign signing, provenance, and the SBOM for each release |
 | `docs/license-policy.md` | Plain-language summary of the proprietary usage restrictions |
 | `examples/README.md` | Folder-level index for browsing examples from GitHub or a file explorer |
 | `CHANGELOG.md` | Release notes and version history |
@@ -194,6 +195,43 @@ The full publication set for the next compatibility-preserving minor is now docu
 - `docs/releases/v1.3.0-compatible-design.md`
 - `docs/releases/v1.3.0-release-notes.md`
 - `docs/releases/v1.3.0-publishing-checklist.md`
+
+## Verify release artifacts
+
+Each GitHub release publishes four main asset types alongside the bare `dxbridge.dll` and `dxbridge.lib`:
+
+| Asset | Description |
+| --- | --- |
+| `dxbridge-v*-win-x64.zip` | Distribution archive containing the DLL, import library, and public headers |
+| `dxbridge-v*-win-x64.zip.sha256` | SHA-256 checksum of the ZIP in `sha256sum`-compatible format |
+| `dxbridge-v*-win-x64.spdx.json` | SPDX 2.x Software Bill of Materials for the release build |
+| `dxbridge-v*-win-x64.zip.cosign.bundle` | Sigstore cosign bundle for keyless signature verification (when present) |
+
+**Checksum verification (Linux/macOS):**
+
+```bash
+sha256sum -c dxbridge-v<version>-win-x64.zip.sha256
+```
+
+**Checksum verification (Windows):**
+
+```powershell
+$expected = (Get-Content "dxbridge-v<version>-win-x64.zip.sha256").Split(' ')[0]
+$actual   = (Get-FileHash "dxbridge-v<version>-win-x64.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($expected -eq $actual) { "OK" } else { "MISMATCH" }
+```
+
+**GitHub build provenance** for both the DLL and the ZIP is available via the GitHub Attestations service and verifiable with the GitHub CLI:
+
+```bash
+gh attestation verify dxbridge-v<version>-win-x64.zip --repo <owner>/dxbridge
+```
+
+> The cosign bundle and GitHub provenance attestations are produced by steps marked
+> `continue-on-error: true` in `.github/workflows/releases.yml`. They may be absent on
+> transient CI failures even when the release itself is valid.
+
+For full verification instructions — including cosign keyless verification, SBOM inspection, and the exact OIDC identity claims — see [`docs/releases/verify-artifacts.md`](docs/releases/verify-artifacts.md).
 
 ## Release automation
 

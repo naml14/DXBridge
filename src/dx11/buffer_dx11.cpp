@@ -132,8 +132,22 @@ DXBResult DX11Backend::UploadData(DXBBuffer buf,
         // holds, we intentionally zero-fill the remainder so the GPU sees a
         // fully initialised buffer.  This avoids stale data from a previous
         // upload leaking into the unused tail region.
+        //
+        // Security note (item 2.2): the temporary host buffer allocation is
+        // wrapped in a try/catch so that std::bad_alloc can never escape
+        // through the C ABI boundary as an unhandled C++ exception.  On
+        // allocation failure we return DXB_E_OUT_OF_MEMORY instead.
         if (size < obj->byte_size) {
-            upload_copy.assign(obj->byte_size, 0u);
+            try {
+                upload_copy.assign(obj->byte_size, 0u);
+            } catch (const std::bad_alloc&) {
+                DXB_LOG_ERROR("UploadData: out of memory allocating %u-byte "
+                              "zero-fill staging buffer", obj->byte_size);
+                SetLastError(DXB_E_OUT_OF_MEMORY,
+                             "UploadData: out of memory allocating %u-byte "
+                             "zero-fill staging buffer", obj->byte_size);
+                return DXB_E_OUT_OF_MEMORY;
+            }
             memcpy(upload_copy.data(), data, size);
             init_data.pSysMem = upload_copy.data();
         } else {
