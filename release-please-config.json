@@ -5,6 +5,7 @@
       "release-type": "simple",
       "version-file": "version.txt",
       "changelog-path": "CHANGELOG.md",
+      "draft": true,
       "extra-files": [
         "CMakeLists.txt",
         "include/dxbridge/dxbridge_version.h"

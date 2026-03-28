@@ -11,12 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    runs-on: windows-latest
+  build:
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Configure (CMake ci preset)
         run: cmake --preset ci
@@ -27,8 +27,131 @@ jobs:
       - name: Verify synchronized version metadata
         run: .\scripts\verify-version.ps1 -Preset ci -Configuration Release
 
-      - name: Run tests (CTest ci preset via PowerShell wrapper)
-        run: .\scripts\run-ctest.ps1 -Preset ci
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: dxbridge-build-${{ github.sha }}
+          path: |
+            out/build/ci/Release/dxbridge.dll
+            out/build/ci/Release/dxbridge.lib
+          retention-days: 1
 
-      - name: Run runtime capability validation smoke
-        run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll
+  validate:
+    needs: build
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dxbridge-build-${{ github.sha }}
+          path: out/build/ci/Release
+
+      - name: Run tests (CTest ci preset via PowerShell wrapper)
+        shell: pwsh
+        run: .\scripts\run-ctest.ps1 -Preset ci -Label "smoke|abi"
+
+  validate-runtimes:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [nodejs, python, go, rust]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dxbridge-build-${{ github.sha }}
+          path: out/build/ci/Release
+
+      - name: Run runtime capability validation (${{ matrix.runtime }})
+        shell: pwsh
+        run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll -Runtime ${{ matrix.runtime }}
+
+  abi-compat:
+    needs: build
+    runs-on: windows-2022
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dxbridge-build-${{ github.sha }}
+          path: new-dll
+
+      - name: Download baseline DLL from latest release
+        id: baseline
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download --pattern "dxbridge.dll" --dir baseline-dll
+
+      - name: Skip ABI check (no prior release)
+        if: steps.baseline.outcome != 'success'
+        shell: bash
+        run: |
+          echo "No prior release found — skipping ABI comparison (first release scenario)." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Compare ABI exports
+        if: steps.baseline.outcome == 'success'
+        shell: pwsh
+        run: |
+          # Locate vcvars64.bat via vswhere
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
+
+          function Get-Exports {
+            param([string]$DllPath)
+            $raw = cmd /c "`"$vcvars`" >nul 2>&1 && dumpbin /EXPORTS `"$DllPath`""
+            return $raw | Select-String 'DXBridge_' | ForEach-Object {
+              ($_.Line.Trim() -split '\s+')[-1]
+            } | Sort-Object -Unique
+          }
+
+          $oldExports = Get-Exports -DllPath "baseline-dll\dxbridge.dll"
+          $newExports = Get-Exports -DllPath "new-dll\dxbridge.dll"
+
+          $removed = $oldExports | Where-Object { $_ -notin $newExports }
+          $added   = $newExports | Where-Object { $_ -notin $oldExports }
+
+          $summary = @()
+          $summary += "## ABI Compatibility Report"
+          $summary += ""
+          $summary += "| | Count |"
+          $summary += "|---|---|"
+          $summary += "| Symbols added | $($added.Count) |"
+          $summary += "| Symbols removed | $($removed.Count) |"
+          if ($added) {
+            $summary += ""
+            $summary += "### Added exports"
+            $summary += ($added | ForEach-Object { "- ``$_``" })
+          }
+          if ($removed) {
+            $summary += ""
+            $summary += "### Removed exports (ABI BREAK)"
+            $summary += ($removed | ForEach-Object { "- ``$_``" })
+          }
+
+          $summary -join "`n" | Add-Content -Path $env:GITHUB_STEP_SUMMARY
+
+          if ($removed.Count -gt 0) {
+            Write-Error "ABI BREAK: $($removed.Count) exported symbol(s) removed: $($removed -join ', ')"
+            exit 1
+          }
+
+          Write-Host "ABI compatible. Added: $($added.Count), Removed: 0"

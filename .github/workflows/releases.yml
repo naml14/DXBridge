@@ -8,16 +8,17 @@ concurrency:
   group: releases-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+permissions: {}
 
 name: releases
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -126,12 +127,24 @@ jobs:
           printf "%s\n" "$RELEASE_NOTES" > ai-release-notes.md
           gh release edit "$RELEASE_TAG" --notes-file ai-release-notes.md
 
+      - name: Mark release as draft
+        if: ${{ steps.release.outputs.release_created }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$RELEASE_TAG" --draft=true
+
   build-release-artifacts:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: windows-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout release tag
         uses: actions/checkout@v6
@@ -169,6 +182,41 @@ jobs:
           Compress-Archive -Path "$outDir\*" `
             -DestinationPath "dxbridge-v${version}-win-x64.zip"
 
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        with:
+          path: out/build/ci/Release/
+          output-file: dxbridge-v${{ needs.release-please.outputs.version }}-win-x64.spdx.json
+          format: spdx-json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3.10.1
+
+      - name: Sign release zip with cosign (keyless)
+        continue-on-error: true
+        shell: bash
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --bundle "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" \
+            "dxbridge-v${VERSION}-win-x64.zip"
+
+      - name: Attest DLL provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+        with:
+          subject-path: out/build/ci/Release/dxbridge.dll
+
+      - name: Attest release zip provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+        with:
+          subject-path: dxbridge-v${{ needs.release-please.outputs.version }}-win-x64.zip
+
       - name: Upload release assets
         shell: bash
         env:
@@ -179,6 +227,84 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$TAG" \
-            "dxbridge-v${VERSION}-win-x64.zip" \
             "out/build/ci/Release/dxbridge.dll" \
-            "out/build/ci/Release/dxbridge.lib"
+            "out/build/ci/Release/dxbridge.lib" \
+            "dxbridge-v${VERSION}-win-x64.zip" \
+            "dxbridge-v${VERSION}-win-x64.zip.sha256" \
+            "dxbridge-v${VERSION}-win-x64.manifest.txt" \
+            "dxbridge-v${VERSION}-win-x64.spdx.json" \
+            --clobber
+
+          if [[ -f "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" ]]; then
+            gh release upload "$TAG" \
+              "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" \
+              --clobber
+          fi
+
+      - name: Publish release (undraft)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false
+
+  rollback-release:
+    needs: [release-please, build-release-artifacts]
+    if: ${{ failure() && needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Delete GitHub Release
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release delete "$TAG" --yes
+
+      - name: Delete git tag
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        with:
+          script: |
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${process.env.TAG}`
+              });
+              core.info(`Deleted tag ${process.env.TAG}`);
+            } catch (err) {
+              core.warning(`Could not delete tag: ${err.message}`);
+            }
+
+      - name: Create failure issue
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Release ${process.env.TAG} failed — rolled back automatically`,
+              body: [
+                `The release pipeline failed after creating tag \`${process.env.TAG}\`.`,
+                `The release and tag have been automatically deleted.`,
+                ``,
+                `**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                `**Commit:** ${context.sha}`,
+                ``,
+                `Please investigate the failure and re-trigger the release by pushing a new commit.`
+              ].join('\n'),
+              labels: ['release-failure']
+            });

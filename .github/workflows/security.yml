@@ -139,21 +139,25 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Comment on PR
-        uses: actions/github-script@v8
+      - name: Post security review on PR
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
         env:
           REVIEW: ${{ steps.gemini.outputs.review }}
         with:
           script: |
+            const review = process.env.REVIEW || '';
+            const hasCritical = review.includes('Critical');
+
             const body = [
               "## Automated Security Review (Gemini API)",
               "",
-              process.env.REVIEW
+              review
             ].join("\n");
 
-            await github.rest.issues.createComment({
+            await github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              pull_number: context.issue.number,
+              event: hasCritical ? 'REQUEST_CHANGES' : 'COMMENT',
               body
             });
