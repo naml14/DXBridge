@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           VERSION=$(tr -d '[:space:]' < version.txt)
           README_VERSION=$(tr -d '\r' < README.md | grep -oP '\| Current version \| `\K[0-9]+\.[0-9]+\.[0-9]+(?=` (?:\||<!--))' || true)
-          API_VERSION=$(tr -d '\r' < docs/api-reference.md | grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`)' || true)
+          API_VERSION=$(tr -d '\r' < docs/api-reference.md | grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`\r?)' || true)
 
           echo "version.txt:           ${VERSION}"
           echo "README.md:             ${README_VERSION:-<not found>}"
