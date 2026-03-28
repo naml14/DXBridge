@@ -221,10 +221,27 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - name: Wait for tag propagation
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.release-please.outputs.tag_name }}"
+          echo "Waiting for tag ${TAG} to propagate..."
+          for i in $(seq 1 12); do
+            if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+              echo "Tag ${TAG} is visible on remote (attempt ${i})."
+              exit 0
+            fi
+            echo "Attempt ${i}/12: tag not yet visible, sleeping 10s..."
+            sleep 10
+          done
+          echo "Tag ${TAG} did not propagate after 120s — proceeding anyway."
+
       - name: Checkout release tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
+          fetch-depth: 0
 
       # `github.sha` here is intentionally the same commit SHA that triggered both
       # ci.yml and this releases.yml workflow via the same push event.  Using it as
