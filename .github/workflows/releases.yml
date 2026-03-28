@@ -227,6 +227,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      attestations: write
     steps:
       - name: Wait for tag propagation
         shell: bash
@@ -424,6 +425,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      attestations: write
     steps:
       - name: Validate tag exists on remote
         shell: bash
@@ -544,7 +546,7 @@ jobs:
         continue-on-error: true
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
         with:
-          subject-path: dxbridge-v${{ inputs.tag }}-win-x64.zip
+          subject-path: dxbridge-${{ inputs.tag }}-win-x64.zip
 
       - name: Upload release assets
         shell: bash
