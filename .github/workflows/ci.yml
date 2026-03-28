@@ -151,16 +151,50 @@ jobs:
       - name: Download baseline DLL from latest release
         id: baseline
         continue-on-error: true
-        shell: bash
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release download --pattern "dxbridge.dll" --dir baseline-dll
+        run: |
+          New-Item -ItemType Directory -Force "baseline-dll" | Out-Null
 
-      - name: Skip ABI check (no prior release)
+          Write-Host "Trying to download standalone baseline asset: dxbridge.dll"
+          & gh release download --pattern "dxbridge.dll" --dir "baseline-dll"
+
+          if ($LASTEXITCODE -eq 0 -and (Test-Path "baseline-dll\dxbridge.dll")) {
+            Write-Host "Baseline ABI DLL downloaded directly from the latest release."
+            exit 0
+          }
+
+          Write-Host "Standalone dxbridge.dll asset not found; falling back to the packaged release ZIP."
+
+          New-Item -ItemType Directory -Force "baseline-zip" | Out-Null
+          & gh release download --pattern "dxbridge-v*-win-x64.zip" --dir "baseline-zip"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "No compatible baseline asset found in the latest release (neither dxbridge.dll nor dxbridge-v*-win-x64.zip)."
+          }
+
+          $zip = Get-ChildItem "baseline-zip" -Filter "dxbridge-v*-win-x64.zip" | Select-Object -First 1
+          if (-not $zip) {
+            throw "Downloaded baseline ZIP was not found after gh release download completed."
+          }
+
+          $extractDir = "baseline-zip\expanded"
+          Expand-Archive -Path $zip.FullName -DestinationPath $extractDir -Force
+
+          $dll = Get-ChildItem $extractDir -Recurse -Filter "dxbridge.dll" | Select-Object -First 1
+          if (-not $dll) {
+            throw "Downloaded baseline ZIP does not contain dxbridge.dll."
+          }
+
+          Copy-Item $dll.FullName "baseline-dll\dxbridge.dll" -Force
+          Write-Host "Baseline ABI DLL extracted from release ZIP."
+
+      - name: Skip ABI check (no compatible baseline asset)
         if: steps.baseline.outcome != 'success'
         shell: bash
         run: |
-          echo "No prior release found — skipping ABI comparison (first release scenario)." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "No compatible baseline asset found in the latest release — skipping ABI comparison (first release or older release missing both standalone DLL and packaged ZIP)." | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Compare ABI exports
         if: steps.baseline.outcome == 'success'

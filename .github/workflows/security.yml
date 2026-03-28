@@ -59,17 +59,14 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          # Share review text across steps without relying on step-scoped GITHUB_OUTPUT files.
+          SECURITY_REVIEW_FILE: ${{ runner.temp }}/gemini-security-review.md
         run: |
           set -euo pipefail
 
           if [[ -z "${GEMINI_API_KEY:-}" ]]; then
             echo "GEMINI_API_KEY not available (fork PR or missing secret) -- skipping AI security review."
-            {
-              DELIM=$(uuidgen)
-              echo "review<<${DELIM}"
-              echo "_Security review skipped: GEMINI_API_KEY secret not available. This is expected for fork PRs._"
-              echo "${DELIM}"
-            } >> "$GITHUB_OUTPUT"
+            printf "%s\n" "_Security review skipped: GEMINI_API_KEY secret not available. This is expected for fork PRs._" > "$SECURITY_REVIEW_FILE"
             exit 0
           fi
 
@@ -144,28 +141,26 @@ jobs:
             exit 1
           fi
 
-          {
-            DELIM=$(uuidgen)
-            echo "review<<${DELIM}"
-            printf "%s\n" "$TEXT"
-            echo "${DELIM}"
-          } >> "$GITHUB_OUTPUT"
+          printf "%s\n" "$TEXT" > "$SECURITY_REVIEW_FILE"
 
       - name: Post security review on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        env:
+          SECURITY_REVIEW_FILE: ${{ runner.temp }}/gemini-security-review.md
         with:
           script: |
-            // Read the review output from the GITHUB_OUTPUT file to avoid
-            // expression interpolation of PR-author-controlled content (injection risk).
             const fs = require('fs');
-            const outputFile = process.env.GITHUB_OUTPUT || '';
-            let review = '';
-            if (outputFile) {
-              const raw = fs.readFileSync(outputFile, 'utf8');
-              const match = raw.match(/^review<<([^\n]+)\n([\s\S]*?)\n\1$/m);
-              if (match) review = match[2];
+            const reviewFile = process.env.SECURITY_REVIEW_FILE || '';
+            if (!reviewFile || !fs.existsSync(reviewFile)) {
+              throw new Error(`Security review file not found: ${reviewFile || '<unset>'}`);
             }
-            const hasCritical = review.includes('Critical');
+
+            const review = fs.readFileSync(reviewFile, 'utf8').trim();
+            if (!review) {
+              throw new Error(`Security review file is empty: ${reviewFile}`);
+            }
+
+            const hasCritical = /^\s*-\s*\[Critical\]\s+/im.test(review);
 
             const body = [
               "## Automated Security Review (Gemini API)",

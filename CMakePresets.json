@@ -24,9 +24,8 @@
     },
     {
       "name": "ci",
-      "inherits": "_base",
+      "inherits": "release",
       "cacheVariables": {
-        "CMAKE_CONFIGURATION_TYPES": "Release",
         "DXBRIDGE_CI_BUILD": "ON"
       }
     }
