@@ -218,6 +218,13 @@ jobs:
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
+      # `github.sha` here is intentionally the same commit SHA that triggered both
+      # ci.yml and this releases.yml workflow via the same push event.  Using it as
+      # the artifact lookup key means we reuse the exact build produced by CI for
+      # that commit rather than rebuilding unnecessarily.  If the artifact is
+      # unavailable (e.g. CI ran on a different event, the artifact expired, or the
+      # upload was skipped), `continue-on-error: true` lets the job proceed and the
+      # subsequent steps rebuild from source as a safe fallback.
       - name: Try to download pre-built build tree from CI
         id: download_artifact
         uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927  # v19

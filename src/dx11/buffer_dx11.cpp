@@ -97,6 +97,9 @@ DXBResult DX11Backend::UploadData(DXBBuffer buf,
         return DXB_E_INVALID_HANDLE;
     }
 
+    // Intentionally reject uploads that exceed the allocated buffer size.
+    // Allowing oversized writes would silently corrupt adjacent GPU memory or
+    // produce undefined D3D11 behaviour; failing loudly here keeps bugs visible.
     if (size > obj->byte_size) {
         SetLastError(DXB_E_INVALID_ARG,
                      "UploadData: data size (%u) exceeds buffer size (%u)",
@@ -125,6 +128,10 @@ DXBResult DX11Backend::UploadData(DXBBuffer buf,
 
         D3D11_SUBRESOURCE_DATA init_data = {};
         std::vector<uint8_t> upload_copy;
+        // Partial upload: if the caller supplies fewer bytes than the buffer
+        // holds, we intentionally zero-fill the remainder so the GPU sees a
+        // fully initialised buffer.  This avoids stale data from a previous
+        // upload leaking into the unused tail region.
         if (size < obj->byte_size) {
             upload_copy.assign(obj->byte_size, 0u);
             memcpy(upload_copy.data(), data, size);
