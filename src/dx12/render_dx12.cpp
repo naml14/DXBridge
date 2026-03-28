@@ -309,6 +309,10 @@ DXBResult DX12Backend::SetVertexBuffer(DXBDevice dev_handle, DXBBuffer buf_handl
         SetLastError(DXB_E_INVALID_HANDLE, "SetVertexBuffer: invalid buffer");
         return DXB_E_INVALID_HANDLE;
     }
+    if (offset > buf_obj->byte_size) {
+        SetLastError(DXB_E_INVALID_ARG, "SetVertexBuffer: offset exceeds buffer size");
+        return DXB_E_INVALID_ARG;
+    }
 
     D3D12_VERTEX_BUFFER_VIEW vbv = {};
     vbv.BufferLocation = buf_obj->resource->GetGPUVirtualAddress() + offset;
@@ -340,6 +344,10 @@ DXBResult DX12Backend::SetIndexBuffer(DXBDevice dev_handle, DXBBuffer buf_handle
     if (!buf_obj) {
         SetLastError(DXB_E_INVALID_HANDLE, "SetIndexBuffer: invalid buffer");
         return DXB_E_INVALID_HANDLE;
+    }
+    if (offset > buf_obj->byte_size) {
+        SetLastError(DXB_E_INVALID_ARG, "SetIndexBuffer: offset exceeds buffer size");
+        return DXB_E_INVALID_ARG;
     }
 
     DXGI_FORMAT dxgi_fmt = DXBFormatToDXGI(fmt);

@@ -2,22 +2,32 @@
   "version": 3,
   "configurePresets": [
     {
-      "name": "debug",
+      "name": "_base",
+      "hidden": true,
       "generator": "Visual Studio 17 2022",
       "architecture": { "value": "x64", "strategy": "set" },
       "binaryDir": "${sourceDir}/out/build/${presetName}"
+    },
+    {
+      "name": "debug",
+      "inherits": "_base",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug"
+      }
     },
     {
       "name": "release",
-      "generator": "Visual Studio 17 2022",
-      "architecture": { "value": "x64", "strategy": "set" },
-      "binaryDir": "${sourceDir}/out/build/${presetName}"
+      "inherits": "_base",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Release"
+      }
     },
     {
       "name": "ci",
-      "generator": "Visual Studio 17 2022",
-      "architecture": { "value": "x64", "strategy": "set" },
-      "binaryDir": "${sourceDir}/out/build/${presetName}"
+      "inherits": "release",
+      "cacheVariables": {
+        "DXBRIDGE_CI_BUILD": "ON"
+      }
     }
   ],
   "buildPresets": [

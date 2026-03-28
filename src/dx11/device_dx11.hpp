@@ -177,6 +177,11 @@ public:
     // Log callback (stored here; passed to backend log if needed)
     void SetLogCallback(DXBLogCallback cb, void* ud);
 
+    // Internal test hook for validation coverage.
+    BufferObjectDX11* DebugGetBufferObject(DXBBuffer buf) noexcept {
+        return m_buffers.Get(buf, ObjectType::Buffer);
+    }
+
 private:
     // DXGI factory (created at Init)
     Microsoft::WRL::ComPtr<IDXGIFactory2> m_factory;

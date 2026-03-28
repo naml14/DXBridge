@@ -527,6 +527,56 @@ static bool TestIndexFormatValidation() {
     return ok;
 }
 
+static bool TestBufferOffsetValidation() {
+    dxb::DX12Backend backend;
+    DXBDevice device = DXBRIDGE_NULL_HANDLE;
+    if (!CreateWarpDevice(backend, false, &device)) {
+        backend.Shutdown();
+        return true;
+    }
+
+    bool ok = true;
+
+    DXBBufferDesc buffer_desc = {};
+    buffer_desc.struct_version = DXBRIDGE_STRUCT_VERSION;
+    buffer_desc.flags          = DXB_BUFFER_FLAG_VERTEX | DXB_BUFFER_FLAG_INDEX;
+    buffer_desc.byte_size      = 16;
+
+    DXBBuffer buffer = DXBRIDGE_NULL_HANDLE;
+    ok = ExpectResult("CreateBuffer(offset validation)",
+                      backend.CreateBuffer(device, &buffer_desc, &buffer),
+                      DXB_OK) && ok;
+
+    if (ok) {
+        ok = ExpectResult("SetVertexBuffer(offset == size)",
+                          backend.SetVertexBuffer(device, buffer, 4, 16),
+                          DXB_OK) && ok;
+
+        ok = ExpectResult("SetVertexBuffer(offset > size)",
+                          backend.SetVertexBuffer(device, buffer, 4, 20),
+                          DXB_E_INVALID_ARG) && ok;
+        ok = ExpectLastErrorContains("SetVertexBuffer(offset > size) error text",
+                                     "offset exceeds buffer size") && ok;
+
+        ok = ExpectResult("SetIndexBuffer(offset == size)",
+                          backend.SetIndexBuffer(device, buffer, DXB_FORMAT_R32_UINT, 16),
+                          DXB_OK) && ok;
+
+        ok = ExpectResult("SetIndexBuffer(offset > size)",
+                          backend.SetIndexBuffer(device, buffer, DXB_FORMAT_R32_UINT, 20),
+                          DXB_E_INVALID_ARG) && ok;
+        ok = ExpectLastErrorContains("SetIndexBuffer(offset > size) error text",
+                                     "offset exceeds buffer size") && ok;
+    }
+
+    if (buffer != DXBRIDGE_NULL_HANDLE) {
+        backend.DestroyBuffer(buffer);
+    }
+    backend.DestroyDevice(device);
+    backend.Shutdown();
+    return ok;
+}
+
 static bool TestStickyDeviceLostShortCircuits() {
     dxb::DX12Backend backend;
     DXBDevice device = DXBRIDGE_NULL_HANDLE;
@@ -874,6 +924,7 @@ int main() {
     ok = TestPsoDebugValidation() && ok;
     ok = TestFrameLifecycleAndResizeGuards() && ok;
     ok = TestIndexFormatValidation() && ok;
+    ok = TestBufferOffsetValidation() && ok;
     ok = TestStickyDeviceLostShortCircuits() && ok;
     ok = TestSwapChainUnknownFormat() && ok;
     ok = TestDescriptorHeapExhaustion() && ok;

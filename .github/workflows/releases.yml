@@ -4,20 +4,70 @@ on:
       - master
   workflow_dispatch:
 
-concurrency:
-  group: releases-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+permissions: {}
 
 name: releases
 
 jobs:
-  release-please:
+  validate-version-docs:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - name: Read canonical version from version.txt
+        id: read-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(tr -d '[:space:]' < version.txt)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Canonical version: ${VERSION}"
+
+      - name: Verify version markers in docs
+        shell: bash
+        env:
+          VERSION: ${{ steps.read-version.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          README_VERSION=$(grep -oP '\| Current version \| `\K[0-9]+\.[0-9]+\.[0-9]+(?=` \|)' README.md || true)
+          API_VERSION=$(grep -oP '- Current version: `\K[0-9]+\.[0-9]+\.[0-9]+(?=`)' docs/api-reference.md || true)
+
+          echo "README.md version: ${README_VERSION}"
+          echo "docs/api-reference.md version: ${API_VERSION}"
+          echo "Expected version: ${VERSION}"
+
+          if [[ "${README_VERSION}" != "${VERSION}" || "${API_VERSION}" != "${VERSION}" ]]; then
+            cat <<EOF
+          Version documentation is out of sync.
+
+          Expected version: ${VERSION}
+          README.md version: ${README_VERSION:-<missing>}
+          docs/api-reference.md version: ${API_VERSION:-<missing>}
+
+          Update the docs before merging the release commit.
+          This workflow intentionally refuses to retag or rewrite history after publication.
+          EOF
+            exit 1
+          fi
+
+          echo "Version markers are synchronized."
+
+  release-please:
+    needs: validate-version-docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: release-please-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -25,7 +75,9 @@ jobs:
     steps:
       - name: Run release-please
         id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38  # v4.4.0
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         with:
           token: ${{ github.token }}
           target-branch: master
@@ -52,9 +104,10 @@ jobs:
 
           if [[ -z "${GEMINI_API_KEY:-}" ]]; then
             {
-              echo "notes<<EOF"
+              DELIM=$(uuidgen)
+              echo "notes<<${DELIM}"
               printf "%s\n" "$RAW_NOTES"
-              echo "EOF"
+              echo "${DELIM}"
             } >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -84,7 +137,8 @@ jobs:
 
           PROMPT+=$'\n\n'"Tag: ${RELEASE_TAG}"$'\n'"Version: ${RELEASE_VERSION}"$'\n\n'"Raw release notes:"$'\n'"${FENCE}markdown"$'\n'"${RAW_NOTES}"$'\n'"${FENCE}"$'\n'
 
-          ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}"
+          ENDPOINT="https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent"
+          trap 'rm -f payload.json response.json' EXIT
 
           jq -n --arg prompt "$PROMPT" '{
             contents: [
@@ -96,10 +150,19 @@ jobs:
             }
           }' > payload.json
 
-          curl -sS -X POST \
+          HTTP_STATUS=$(curl -sS -X POST \
             -H "Content-Type: application/json" \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
             --data-binary @payload.json \
-            "$ENDPOINT" > response.json
+            -o response.json \
+            -w "%{http_code}" \
+            "$ENDPOINT")
+
+          if [[ "$HTTP_STATUS" != "200" ]]; then
+            echo "Gemini API returned HTTP ${HTTP_STATUS}"
+            cat response.json
+            exit 1
+          fi
 
           TEXT=$(jq -r '.candidates[0].content.parts[0].text // empty' response.json)
 
@@ -108,9 +171,10 @@ jobs:
           fi
 
           {
-            echo "notes<<EOF"
+            DELIM=$(uuidgen)
+            echo "notes<<${DELIM}"
             printf "%s\n" "$TEXT"
-            echo "EOF"
+            echo "${DELIM}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Update GitHub release notes
@@ -126,31 +190,94 @@ jobs:
           printf "%s\n" "$RELEASE_NOTES" > ai-release-notes.md
           gh release edit "$RELEASE_TAG" --notes-file ai-release-notes.md
 
+      - name: Mark release as draft
+        if: ${{ steps.release.outputs.release_created }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$RELEASE_TAG" --draft=true
+
   build-release-artifacts:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
-    runs-on: windows-latest
+    runs-on: windows-2022
+    timeout-minutes: 45
+    concurrency:
+      group: build-artifacts-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout release tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
+      # `github.sha` here is intentionally the same commit SHA that triggered both
+      # ci.yml and this releases.yml workflow via the same push event.  Using it as
+      # the artifact lookup key means we reuse the exact build produced by CI for
+      # that commit rather than rebuilding unnecessarily.  If the artifact is
+      # unavailable (e.g. CI ran on a different event, the artifact expired, or the
+      # upload was skipped), `continue-on-error: true` lets the job proceed and the
+      # subsequent steps rebuild from source as a safe fallback.
+      - name: Try to download pre-built build tree from CI
+        id: download_artifact
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927  # v19
+        continue-on-error: true
+        with:
+          workflow: ci.yml
+          commit: ${{ github.sha }}
+          name: dxbridge-ci-tree-${{ github.sha }}
+          path: .
+
+      - name: Report artifact source
+        shell: bash
+        run: |
+          if [[ "${{ steps.download_artifact.outcome }}" == "success" ]]; then
+            echo "Using pre-built CI build tree (same commit: ${{ github.sha }})"
+          else
+            echo "Pre-built build tree not found — building from source."
+          fi
+
+      - name: Install sccache
+        if: steps.download_artifact.outcome != 'success'
+        uses: mozilla-actions/sccache-action@9e326ebed976843c9932b3aa0e021c6f50310eb4  # v0.0.9
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+      - name: Configure sccache for MSVC
+        if: steps.download_artifact.outcome != 'success'
+        shell: pwsh
+        run: |
+          echo "SCCACHE_GHA_ENABLED=true" >> $env:GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $env:GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $env:GITHUB_ENV
+
       - name: Configure (CMake ci preset)
+        if: steps.download_artifact.outcome != 'success'
+        shell: pwsh
         run: cmake --preset ci
 
       - name: Build (CMake ci preset)
+        if: steps.download_artifact.outcome != 'success'
+        shell: pwsh
         run: cmake --build --preset ci
 
       - name: Verify synchronized version metadata
+        shell: pwsh
         run: .\scripts\verify-version.ps1 -Preset ci -Configuration Release
 
       - name: Run ABI and smoke validation
+        shell: pwsh
         run: .\scripts\run-ctest.ps1 -Preset ci -Label "abi|smoke"
 
       - name: Run runtime capability validation smoke
+        shell: pwsh
         run: .\scripts\run-runtime-validation.ps1 -Dll .\out\build\ci\Release\dxbridge.dll
 
       - name: Package artifacts
@@ -169,6 +296,55 @@ jobs:
           Compress-Archive -Path "$outDir\*" `
             -DestinationPath "dxbridge-v${version}-win-x64.zip"
 
+          $zipPath = "dxbridge-v${version}-win-x64.zip"
+          $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -Path "dxbridge-v${version}-win-x64.zip.sha256" `
+            -Value "${hash} *${zipPath}" -NoNewline
+
+          $manifest = "Version: ${version}`n" +
+            "Source commit: ${{ github.sha }}`n" +
+            "Included files:`n" +
+            "- dxbridge.dll`n" +
+            "- dxbridge.lib`n" +
+            "- include/dxbridge/dxbridge.h`n" +
+            "- include/dxbridge/dxbridge_version.h"
+          Set-Content -Path "dxbridge-v${version}-win-x64.manifest.txt" -Value $manifest
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
+        with:
+          path: out/build/ci/Release/
+          output-file: dxbridge-v${{ needs.release-please.outputs.version }}-win-x64.spdx.json
+          format: spdx-json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac  # v3.10.1
+
+      - name: Sign release zip with cosign (keyless)
+        continue-on-error: true
+        shell: bash
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          set -euo pipefail
+          cosign sign-blob --yes \
+            --bundle "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" \
+            "dxbridge-v${VERSION}-win-x64.zip"
+
+      - name: Attest DLL provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+        with:
+          subject-path: out/build/ci/Release/dxbridge.dll
+
+      - name: Attest release zip provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2.4.0
+        with:
+          subject-path: dxbridge-v${{ needs.release-please.outputs.version }}-win-x64.zip
+
       - name: Upload release assets
         shell: bash
         env:
@@ -179,6 +355,84 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$TAG" \
-            "dxbridge-v${VERSION}-win-x64.zip" \
             "out/build/ci/Release/dxbridge.dll" \
-            "out/build/ci/Release/dxbridge.lib"
+            "out/build/ci/Release/dxbridge.lib" \
+            "dxbridge-v${VERSION}-win-x64.zip" \
+            "dxbridge-v${VERSION}-win-x64.zip.sha256" \
+            "dxbridge-v${VERSION}-win-x64.manifest.txt" \
+            "dxbridge-v${VERSION}-win-x64.spdx.json" \
+            --clobber
+
+          if [[ -f "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" ]]; then
+            gh release upload "$TAG" \
+              "dxbridge-v${VERSION}-win-x64.zip.cosign.bundle" \
+              --clobber
+          fi
+
+      - name: Publish release (undraft)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --draft=false
+
+  rollback-release:
+    needs: [release-please, build-release-artifacts]
+    if: ${{ failure() && needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Delete GitHub Release
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release delete "$TAG" --yes
+
+      - name: Delete git tag
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        with:
+          script: |
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${process.env.TAG}`
+              });
+              core.info(`Deleted tag ${process.env.TAG}`);
+            } catch (err) {
+              core.warning(`Could not delete tag: ${err.message}`);
+            }
+
+      - name: Create failure issue
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Release ${process.env.TAG} failed — rolled back automatically`,
+              body: [
+                `The release pipeline failed after creating tag \`${process.env.TAG}\`.`,
+                `The release and tag have been automatically deleted.`,
+                ``,
+                `**Workflow run:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+                `**Commit:** ${context.sha}`,
+                ``,
+                `Please investigate the failure and re-trigger the release by pushing a new commit.`
+              ].join('\n'),
+              labels: ['release-failure']
+            });
