@@ -63,7 +63,7 @@ jobs:
           set -euo pipefail
 
           if [[ -z "${GEMINI_API_KEY:-}" ]]; then
-            echo "GEMINI_API_KEY not available (fork PR or missing secret) — skipping AI security review."
+            echo "GEMINI_API_KEY not available (fork PR or missing secret) -- skipping AI security review."
             {
               DELIM=$(uuidgen)
               echo "review<<${DELIM}"
@@ -74,8 +74,8 @@ jobs:
           fi
 
           # Read diff material from files written by the previous step.
-          # Never use GitHub Actions expression interpolation for PR-author-controlled content —
-          # that path allows injection via the ${{ }} evaluation layer before the shell sees the value.
+          # Never use GitHub Actions expression interpolation for PR-author-controlled content --
+          # that path allows injection via the \'$'\'{{}}' evaluation layer before the shell sees the value.
           CHANGED_FILES="$(cat changed_files.txt 2>/dev/null || true)"
           DIFF="$(cat pr_truncated.diff 2>/dev/null || true)"
 
@@ -94,7 +94,7 @@ jobs:
           Output format (Markdown):
           ## Summary
           ## Findings
-          - [Severity] File: ... — description + recommendation
+          - [Severity] File: ... -- description + recommendation
           ## Suggested Tests
           ## Notes
 
@@ -153,11 +153,18 @@ jobs:
 
       - name: Post security review on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd  # v8
-        env:
-          REVIEW: ${{ steps.gemini.outputs.review }}
         with:
           script: |
-            const review = process.env.REVIEW || '';
+            // Read the review output from the GITHUB_OUTPUT file to avoid
+            // expression interpolation of PR-author-controlled content (injection risk).
+            const fs = require('fs');
+            const outputFile = process.env.GITHUB_OUTPUT || '';
+            let review = '';
+            if (outputFile) {
+              const raw = fs.readFileSync(outputFile, 'utf8');
+              const match = raw.match(/^review<<([^\n]+)\n([\s\S]*?)\n\1$/m);
+              if (match) review = match[2];
+            }
             const hasCritical = review.includes('Critical');
 
             const body = [

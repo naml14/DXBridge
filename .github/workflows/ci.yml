@@ -53,17 +53,14 @@ jobs:
             .\scripts\verify-version.ps1 -Preset ci -Configuration Release
           } catch {
             $canonical = (Get-Content version.txt -Raw).Trim()
-            Write-Error @"
-          Version metadata is out of sync.
-          Expected version: $canonical
-
-          If README.md or docs/api-reference.md show an older version, update them:
-          README.md          -> '| Current version | ``$canonical`` |'
-          docs/api-reference.md -> '- Current version: ``$canonical``'
-                         -> 'This page documents release ``$canonical``'
-
-          Run: .\scripts\verify-version.ps1 -SkipBinaryCheck  to validate locally.
-"@
+            $msg = "Version metadata is out of sync.`n" +
+              "Expected version: $canonical`n`n" +
+              "If README.md or docs/api-reference.md show an older version, update them:`n" +
+              "README.md          -> '| Current version | ``$canonical`` |'`n" +
+              "docs/api-reference.md -> '- Current version: ``$canonical``'`n" +
+              "                   -> 'This page documents release ``$canonical``'`n`n" +
+              "Run: .\scripts\verify-version.ps1 -SkipBinaryCheck  to validate locally."
+            Write-Error $msg
             exit 1
           }
 

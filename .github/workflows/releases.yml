@@ -291,19 +291,17 @@ jobs:
 
           $zipPath = "dxbridge-v${version}-win-x64.zip"
           $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          @"
-          ${hash} *${zipPath}
-"@ | Set-Content -Path "dxbridge-v${version}-win-x64.zip.sha256" -NoNewline
+          Set-Content -Path "dxbridge-v${version}-win-x64.zip.sha256" `
+            -Value "${hash} *${zipPath}" -NoNewline
 
-          @"
-          Version: ${version}
-          Source commit: ${{ github.sha }}
-          Included files:
-          - dxbridge.dll
-          - dxbridge.lib
-          - include/dxbridge/dxbridge.h
-          - include/dxbridge/dxbridge_version.h
-"@ | Set-Content -Path "dxbridge-v${version}-win-x64.manifest.txt"
+          $manifest = "Version: ${version}`n" +
+            "Source commit: ${{ github.sha }}`n" +
+            "Included files:`n" +
+            "- dxbridge.dll`n" +
+            "- dxbridge.lib`n" +
+            "- include/dxbridge/dxbridge.h`n" +
+            "- include/dxbridge/dxbridge_version.h"
+          Set-Content -Path "dxbridge-v${version}-win-x64.manifest.txt" -Value $manifest
 
       - name: Generate SPDX SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610  # v0.24.0
