@@ -1,0 +1,11 @@
+# Normalize line endings: store LF in the repository
+* text=auto
+
+# Markdown files: always LF in working copy on all platforms
+*.md text eol=lf
+
+# Binary files: never mangle
+*.dll binary
+*.lib binary
+*.zip binary
+*.exe binary

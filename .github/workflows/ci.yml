@@ -18,6 +18,51 @@ permissions:
   contents: read
 
 jobs:
+  check-version-docs:
+    name: Check version markers in docs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - name: Verify version markers match version.txt
+        shell: python3 {0}
+        run: |
+          import re, sys
+
+          def read(path):
+              return open(path, encoding="utf-8").read().replace("\r\n", "\n").replace("\r", "\n")
+
+          version    = open("version.txt").read().strip()
+          readme     = read("README.md")
+          api_ref    = read("docs/api-reference.md")
+
+          readme_match  = re.search(r'\| Current version \| `([0-9]+\.[0-9]+\.[0-9]+)`', readme)
+          api_match     = re.search(r'- Current version: `([0-9]+\.[0-9]+\.[0-9]+)`', api_ref)
+
+          readme_ver = readme_match.group(1) if readme_match else "<not found>"
+          api_ver    = api_match.group(1)    if api_match    else "<not found>"
+
+          print(f"version.txt:           {version}")
+          print(f"README.md:             {readme_ver}")
+          print(f"docs/api-reference.md: {api_ver}")
+
+          fail = False
+          if readme_ver != version:
+              print(f"::error file=README.md,line=34::Version marker out of sync. Expected `{version}`, got `{readme_ver}`. Update README.md line 34.")
+              fail = True
+          if api_ver != version:
+              print(f"::error file=docs/api-reference.md,line=8::Version marker out of sync. Expected `{version}`, got `{api_ver}`. Update docs/api-reference.md line 8.")
+              fail = True
+          if fail:
+              print(f"\nOne or more version markers are out of sync with version.txt ({version}).")
+              print("Update the listed files to match version.txt before merging.")
+              sys.exit(1)
+
+          print("All version markers are synchronized.")
+
   build:
     runs-on: windows-2022
     timeout-minutes: 30
