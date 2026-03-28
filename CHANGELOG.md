@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 The format is inspired by Keep a Changelog and the project uses semantic versioning from `include/dxbridge/dxbridge_version.h` and `CMakeLists.txt`.
 
+## [1.5.0](https://github.com/naml14/DXBridge/compare/v1.4.0...v1.5.0) (2026-03-28)
+
+
+### Features
+
+* add build and upload steps for release artifacts in CI workflow ([e1b5d1a](https://github.com/naml14/DXBridge/commit/e1b5d1a8ca721c5a8cd2eb3a56e5b1c7cd23fda9))
+* add CI and security review workflows for pull requests ([bf77f5e](https://github.com/naml14/DXBridge/commit/bf77f5e2728a8fc389adc7a9420f404c12f5db34))
+* add release automation configuration and workflows ([ae3eaf6](https://github.com/naml14/DXBridge/commit/ae3eaf6248abf625d16468c4500872a3725f888e))
+* add release-please version annotations to markdown docs ([f90a16b](https://github.com/naml14/DXBridge/commit/f90a16b7c8f21908716ee1ace53ffe5171d3e98a))
+* agregar documentación para la verificación de artefactos de lanzamiento y mejorar la gestión de errores en UploadData ([84a8380](https://github.com/naml14/DXBridge/commit/84a83802a320a5a583b52435e20501e0d3509571))
+* agregar función de depuración para obtener objetos de buffer y mejorar validaciones en pruebas ([99aa5dd](https://github.com/naml14/DXBridge/commit/99aa5dd8666928bee5a5e3251e7bc262767cc7fa))
+* initialize dxbridge v1 repository with 8 different languages examples and full documentation ([97a736d](https://github.com/naml14/DXBridge/commit/97a736d1c4c04fc4fe166dbb3296970f8275e483))
+* mejorar la validación de carga de datos en UploadData para evitar corrupción de memoria ([816859a](https://github.com/naml14/DXBridge/commit/816859a4263581b9df3b6cdefbe74bb691154080))
+* release dxbridge v1.3.0 with capability discovery ([56db925](https://github.com/naml14/DXBridge/commit/56db925766b5c494485a1682efb21463a35280a0))
+* release dxbridge v1.3.0 with capability discovery, integration examples, and validation tooling ([e22ce44](https://github.com/naml14/DXBridge/commit/e22ce44c45506508732c0a67bb37947e52b4bb9a))
+* update CI workflows to use actions/checkout@v6 and actions/github-script@v8; add configuration files for AI agent guidelines ([301a42b](https://github.com/naml14/DXBridge/commit/301a42b7c91db998f035c3e36ec9b5af857778c1))
+
+
+### Bug Fixes
+
+* add GH_REPO environment variable to release notes update step ([54cbd60](https://github.com/naml14/DXBridge/commit/54cbd60ceaeeae0317144dcde2c2f342514c1304))
+* add tag propagation wait and fetch-depth:0 before release checkout ([b9e5830](https://github.com/naml14/DXBridge/commit/b9e58300d8a7fbcf15332d912579264d38274214))
+* automate version marker sync and prevent future drift ([6756702](https://github.com/naml14/DXBridge/commit/6756702acc2bb3b1046e62ce1c2538c1acc3f341))
+* corregir la ruta de extracción de artefactos en el flujo de trabajo de CI ([5a4a790](https://github.com/naml14/DXBridge/commit/5a4a7907a1f2deded8b1f9e6cd53a0d68c783aa4))
+* corregir lectura fuera de límites en UploadData y validar offsets en SetVertexBuffer/SetIndexBuffer ([d92ccbc](https://github.com/naml14/DXBridge/commit/d92ccbcfa03e442a633a0b00d9f2cd0177e3e2c3))
+* escape backtick in api-reference grep lookahead to prevent CRLF false negative ([7296daf](https://github.com/naml14/DXBridge/commit/7296dafcd86ed6a80d5eb69db7b1737ccf4325ac))
+* format prompt output for security review diff in workflow ([a2fb143](https://github.com/naml14/DXBridge/commit/a2fb143899dd2cda5fec8c38d34d3ddb9b2fe536))
+* merge security fixes and CI/CD hardening from security/1.3.1-minor-security-fixes ([994cf03](https://github.com/naml14/DXBridge/commit/994cf03edc53a6b5bf2765b3ad42c3bc401c70c4))
+* replace bash grep with python3 for version marker extraction ([557d1e5](https://github.com/naml14/DXBridge/commit/557d1e55d3fca3ef4e0ea444a25aa86476e7596a))
+* se saltó de 1.2.0 a 1.4.0, error del bot ([c0722d7](https://github.com/naml14/DXBridge/commit/c0722d7332ae18ea1b1ef701f8a7a616f6c8523f))
+* strip CRLF before version marker grep in releases.yml ([d99f30b](https://github.com/naml14/DXBridge/commit/d99f30b7db0ff3bbcdbeb4e094dd417ed95d7bd4))
+* update release notes formatting to include markdown fence ([930b2ab](https://github.com/naml14/DXBridge/commit/930b2abc99fe32d303a6b5683443c757b8b8fce0))
+* update version grep patterns to tolerate release-please annotation comment ([ddddc5a](https://github.com/naml14/DXBridge/commit/ddddc5a5870e0e50e8a393c00b39fc32b76113d0))
+
 ## [1.4.0](https://github.com/naml14/DXBridge/compare/v1.3.0...v1.4.0) (2026-03-28)
 
 
